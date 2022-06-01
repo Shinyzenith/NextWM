@@ -1,0 +1,5 @@
+cairocffi
+pywayland
+pywlroots
+xcffib
+xkbcommon

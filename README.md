@@ -1,0 +1,3 @@
+# NextWM
+
+Wayland compositor

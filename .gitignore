@@ -1,0 +1,6 @@
+__pycache__/
+.env
+.venv
+.mypy_cache/
+.dmypy.json
+dmypy.json
