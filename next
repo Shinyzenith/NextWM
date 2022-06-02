@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.10
-from libnext.backend import init
+from libnext.backend import Core
 
 if __name__ == "__main__":
-    init()
+    Core()

@@ -1,32 +1,32 @@
+import os
 import signal
 from functools import partial
 
 from pywayland.server import Display
-from wlroots.allocator import Allocator
-from wlroots.backend import Backend, BackendType
-from wlroots.renderer import Renderer
-from wlroots.wlr_types import Compositor
+from wlroots import helper as wlroots_helper
 
 
-def callback(display: Display, signal_num, stack_frame) -> None:
-    del signal_num, stack_frame # We don't need these at the moment.
-    print("Terminating NextWM")
-    display.terminate()
+class Core():
+    def __init__(self) -> None:
+        """Setup the Wayland core backend"""
+        self.display = Display()
+        self.event_loop = self.display.get_event_loop()
+        (
+            self.compositor,
+            self.allocator,
+            self.renderer,
+            self.backend
+        ) = wlroots_helper.build_compositor(self.display)
+        self.socket = self.display.add_socket()
+        os.environ["WAYLAND_DISPLAY"] = self.socket.decode()
+        print("Starting NextWM on WAYLAND_DISPLAY=%s", self.socket.decode())
 
-def init() -> None:
-    with Display() as display:
-        signal.signal(signal.SIGINT, partial(callback, display))
+        self.backend.start()
+        self.display.run()
 
-        backend = Backend(display, backend_type=BackendType.AUTO)
-        renderer = Renderer.autocreate(backend)
-        renderer.init_display(display)
-        allocator = Allocator.autocreate(backend, renderer)
-        compositor = Compositor(display, renderer)
+        self.backend.destroy()
+        self.display.destroy()
 
-        socket = display.add_socket()
-        print("socket: ", socket.decode())
-        with backend:
-            display.run()
-
-        del allocator # Don't need this at the moment.
-        del compositor # Don't need this at the moment.
+    @property
+    def display_name(self) -> str:
+        return self.socket.decode()
