@@ -5,3 +5,4 @@ __pycache__/
 .dmypy.json
 dmypy.json
 *flycheck*
+*_libinput.*
