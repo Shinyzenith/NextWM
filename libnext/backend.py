@@ -67,8 +67,8 @@ class Core():
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             print("Starting XWayland on", self.xwayland.display_name)
 
-        #self.backend.start()
-        #self.display.run()
+        self.backend.start()
+        self.display.run()
 
         # Cleanup
         if self.xwayland:
