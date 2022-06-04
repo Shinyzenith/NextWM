@@ -67,12 +67,22 @@ class Core():
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             print("Starting XWayland on", self.xwayland.display_name)
 
-        self.backend.start()
-        self.display.run()
+        #self.backend.start()
+        #self.display.run()
 
+        # Cleanup
+        if self.xwayland:
+            self.xwayland.destroy()
+        self.cursor.destroy()
+        self.output_layout.destroy()
+        self.seat.destroy()
         self.backend.destroy()
         self.display.destroy()
 
     @property
-    def display_name(self) -> str:
+    def wayland_socket_name(self) -> str:
         return self.socket.decode()
+
+    @property
+    def xwayland_socket_name(self) -> str:
+        return self.xwayland.display_name
