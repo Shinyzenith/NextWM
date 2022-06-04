@@ -10,9 +10,10 @@ clean:
 	@rm -rf **/**/__pycache__
 
 setup:
+	@python3 -m pip install -r ./requirements.txt
 	@python3 ./libnext/libinput_ffi_build.py
 
-check:
-	@#todo
+lint:
+	@TOXENV=codestyle,pep8,mypy tox
 
-.PHONY: run clean check
+.PHONY: run clean lint

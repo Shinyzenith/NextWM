@@ -6,3 +6,5 @@ __pycache__/
 dmypy.json
 *flycheck*
 *_libinput.*
+.tox/
+.mypy_cache/
