@@ -12,4 +12,7 @@ clean:
 setup:
 	@python3 ./libnext/libinput_ffi_build.py
 
-.PHONY: run clean
+check:
+	@#todo
+
+.PHONY: run clean check
