@@ -1,13 +1,16 @@
 import os
+from typing import Callable
 
-from pywayland.server import Display
+from pywayland.server import Display, Listener, Signal
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
-                               GammaControlManagerV1, LayerShellV1,
-                               OutputLayout, PrimarySelectionV1DeviceManager,
+                               GammaControlManagerV1, LayerShellV1)
+from wlroots.wlr_types import Output as wlrOutput
+from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
                                ScreencopyManagerV1, XCursorManager,
-                               XdgOutputManagerV1, XdgShell, seat)
+                               XdgOutputManagerV1, XdgShell, input_device,
+                               seat)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
@@ -36,6 +39,8 @@ class Core():
         DataDeviceManager(self.display)
         DataControlManagerV1(self.display)
         self.seat: seat.Seat = seat.Seat(self.display, "NextWM-Seat0")
+        self.add_listener(self.backend.new_input_event, self._on_new_input)
+        self.add_listener(self.backend.new_output_event, self._on_new_output)
 
         # Output configuration.
         self.output_layout: OutputLayout = OutputLayout()
@@ -50,15 +55,13 @@ class Core():
         self.layer_shell: LayerShellV1 = LayerShellV1(self.display)
 
         # Some protocol initialization.
-        XdgOutputManagerV1(self.display, self.output_layout)
-        ScreencopyManagerV1(self.display)
         GammaControlManagerV1(self.display)
-        # output_power_manager = OutputPowerManagerV1(self.display)
-        _ = OutputPowerManagerV1(self.display)
-        self.idle = Idle(self.display)
-        # idle_inhibitor_manager = IdleInhibitorManagerV1(self.display)
-        _ = IdleInhibitorManagerV1(self.display)
         PrimarySelectionV1DeviceManager(self.display)
+        ScreencopyManagerV1(self.display)
+        XdgOutputManagerV1(self.display, self.output_layout)
+        idle_inhibitor_manager = IdleInhibitorManagerV1(self.display)
+        output_power_manager = OutputPowerManagerV1(self.display)
+        self.idle = Idle(self.display)
 
         # XWayland initialization.
         # True -> lazy evaluation.
@@ -71,9 +74,11 @@ class Core():
             print("Starting XWayland on", self.xwayland.display_name)
 
         self.backend.start()
+        self.backend.get_session().change_vt(2)
         self.display.run()
 
         # Cleanup
+        self.destroy_listeners()
         if self.xwayland:
             self.xwayland.destroy()
         self.cursor.destroy()
@@ -96,3 +101,37 @@ class Core():
         XWayland socket name.
         """
         return self.xwayland.display_name or ""
+
+    # Utils
+    def add_listener(self, event: Signal, callback: Callable) -> None:
+        """
+        Add a listener to any event.
+        """
+        if not hasattr(self, "listeners"):
+            self.listeners = []
+
+        listener = Listener(callback)
+        event.add(listener)
+        self.listeners.append(listener)
+
+    def destroy_listeners(self) -> None:
+        """
+        Destroy all assigned listeners.
+        """
+        for listener in reversed(self.listeners):
+            listener.remove()
+
+    # Listeners
+    def _on_new_input(
+            self,
+            listener: Listener,
+            device: input_device.InputDevice,
+    ) -> None:
+        print("backend new_input_event fired!")
+
+    def _on_new_output(
+            self,
+            listener: Listener,
+            wlr_output: wlrOutput
+    ) -> None:
+        print("backend new_output_event fired!")
