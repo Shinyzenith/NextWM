@@ -59,8 +59,10 @@ class Core():
         PrimarySelectionV1DeviceManager(self.display)
         ScreencopyManagerV1(self.display)
         XdgOutputManagerV1(self.display, self.output_layout)
-        idle_inhibitor_manager = IdleInhibitorManagerV1(self.display)
-        output_power_manager = OutputPowerManagerV1(self.display)
+        # idle_inhibitor_manager = IdleInhibitorManagerV1(self.display)
+        # output_power_manager = OutputPowerManagerV1(self.display)
+        _ = IdleInhibitorManagerV1(self.display)
+        _ = OutputPowerManagerV1(self.display)
         self.idle = Idle(self.display)
 
         # XWayland initialization.

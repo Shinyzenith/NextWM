@@ -1,6 +1,6 @@
 # NextWM
 
-Wayland compositor
+Wayland compositing window manager.
 
 # Credit where credit is due:
 
