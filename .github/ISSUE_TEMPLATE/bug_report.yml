@@ -1,0 +1,22 @@
+name: "Report an issue"
+description: "Our tracker for bugs and other issues with the core project"
+labels: ["unconfirmed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include:
+        - Your NextWM version (`next --version`).
+        - Relevant **logs** if any.
+  - type: textarea
+    attributes:
+      label: "The issue:"
+      value: I wanted to do X, but Y happened, and I expected Z. I think this is a bug.
+    validations:
+      render: markdown
+  - type: checkboxes
+    attributes:
+      label: "Required:"
+      options:
+        - label: I have searched past issues to see if this bug has already been reported.
+          required: true

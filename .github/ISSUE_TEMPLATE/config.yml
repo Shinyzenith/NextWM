@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question
+    about: Ask a question
+    url: https://matrix.to/#/#herbwm:matrix.org
