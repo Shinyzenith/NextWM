@@ -39,8 +39,6 @@ class NextKeyboard(Listeners):
         self.device = device
         self.keyboard = device.keyboard
         self.core = core
-        # TODO: Core should be of type libnext.backend.NextCore
-        # TODO: I could not type it due to dependency cycles.
 
         # NOTE: https://github.com/Shinyzenith/NextWM/issues/5
         self.keyboard.set_repeat_info(100, 300)
