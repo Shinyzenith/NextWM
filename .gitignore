@@ -8,3 +8,4 @@ dmypy.json
 *_libinput.*
 .tox/
 .mypy_cache/
+.vim/

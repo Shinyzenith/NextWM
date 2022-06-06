@@ -1,7 +1,31 @@
-import os
-from typing import Callable
+# Copyright (c) 2021 Shinyzenith <aakashsensharma@gmail.com>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+# EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from pywayland.server import Display, Listener, Signal
+import logging
+import os
+
+from pywayland.server import Display, Listener
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
@@ -10,15 +34,20 @@ from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
 from wlroots.wlr_types import Output as wlrOutput
 from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
                                ScreencopyManagerV1, XCursorManager,
-                               XdgOutputManagerV1, XdgShell, input_device,
-                               seat)
+                               XdgOutputManagerV1, XdgShell, seat)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
+from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
 
+from libnext.inputs import NextKeyboard
+from libnext.utils import Listeners
 
-class Core():
+log = logging.getLogger("Next: Backend")
+
+
+class NextCore(Listeners):
     def __init__(self) -> None:
         """
         Setup nextwm
@@ -34,9 +63,11 @@ class Core():
         self.renderer.init_display(self.display)
         self.socket = self.display.add_socket()
         os.environ["WAYLAND_DISPLAY"] = self.socket.decode()
-        print("Starting NextWM on WAYLAND_DISPLAY", self.socket.decode())
+        log.info(f"WAYLAND_DISPLAY {self.socket.decode()}")
 
         # Input configuration.
+        self.keyboards: list[NextKeyboard] = []
+
         DataDeviceManager(self.display)
         DataControlManagerV1(self.display)
         self.seat: seat.Seat = seat.Seat(self.display, "NextWM-Seat0")
@@ -72,10 +103,10 @@ class Core():
         # A.K.A XWayland is started when a client needs it.
         self.xwayland = xwayland.XWayland(self.display, self.compositor, True)
         if not self.xwayland:
-            print("Failed to setup XWayland. Continuing without.")
+            log.error("Failed to setup XWayland. Continuing without.")
         else:
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
-            print("Starting XWayland on", self.xwayland.display_name)
+            log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
 
         self.backend.start()
         self.backend.get_session().change_vt(2)
@@ -91,6 +122,7 @@ class Core():
         self.backend.destroy()
         self.display.destroy()
 
+    # Properties
     @property
     def wayland_socket_name(self) -> str:
         """
@@ -106,36 +138,23 @@ class Core():
         """
         return self.xwayland.display_name or ""
 
-    # Utils
-    def add_listener(self, event: Signal, callback: Callable) -> None:
-        """
-        Add a listener to any event.
-        """
-        if not hasattr(self, "listeners"):
-            self.listeners = []
-
-        listener = Listener(callback)
-        event.add(listener)
-        self.listeners.append(listener)
-
-    def destroy_listeners(self) -> None:
-        """
-        Destroy all assigned listeners.
-        """
-        for listener in reversed(self.listeners):
-            listener.remove()
-
     # Listeners
-    def _on_new_input(
-            self,
-            listener: Listener,
-            device: input_device.InputDevice,
-    ) -> None:
-        print("backend new_input_event fired!")
+    def _on_new_input(self, listener: Listener, device: InputDevice) -> None:
+        log.debug("Signal: wlr_backend_new_input_event")
+        match device.device_type:
+            case InputDeviceType.KEYBOARD:
+                self.keyboards.append(NextKeyboard(self, device))
+                self.seat.set_keyboard(device)
+            case InputDeviceType.POINTER:
+                self.cursor.attach_input_device(device)
 
-    def _on_new_output(
-            self,
-            listener: Listener,
-            wlr_output: wlrOutput
-    ) -> None:
-        print("backend new_output_event fired!")
+        # TODO: set the seat capabilities
+        log.debug(
+            "Device: %s of type %s detected.",
+            device.name,
+            device.device_type.name.lower(),
+        )
+
+    def _on_new_output(self, _: Listener, __: wlrOutput) -> None:
+        # TODO: Finish this.
+        log.debug("Signal: wlr_backend_new_output_event")
