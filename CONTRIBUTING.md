@@ -15,7 +15,7 @@ Feel free to contact the maintainers if that's a concern.
 
 ## Proper Commit Messages
 
-Make sure to write proper commit messages.
+Make sure to write proper commit messages, sign your commits with gpg, and use `-s` flag while running git commit.
 
 Example:
 
