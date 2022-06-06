@@ -1,18 +1,33 @@
 #!/usr/bin/env python3.10
+import argparse
 import logging
 
 from libnext.backend import NextCore
 
+# Default log level.
+log_level=logging.INFO
+
+# Setting up the parser.
+parser = argparse.ArgumentParser(description="NextWM - Wayland compositing window manager.")
+parser.add_argument("-d", "--debug", help="enable debug mode", action="store_true")
+args = parser.parse_args()
+
+if args.debug:
+    log_level=logging.DEBUG
+
 log = logging.getLogger("NextWM")
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=log_level,
     format="(%(asctime)s) %(levelname)s %(message)s",
     datefmt="%d/%m/%y - %H:%M:%S %Z"
 )
 
 try:
     import coloredlogs
-    coloredlogs.install(logger=log)
+    if args.debug:
+        coloredlogs.install(logger=log, level='DEBUG')
+    else:
+        coloredlogs.install(logger=log)
 finally:
     if __name__ == "__main__":
         NextCore()
