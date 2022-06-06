@@ -1,9 +1,9 @@
 BINARY=next
 
-all: run
+all: dev
 
-run:
-	@./$(BINARY)
+dev:
+	@./$(BINARY) -d
 
 clean:
 	@rm -rf ./libnext/_libinput.*
