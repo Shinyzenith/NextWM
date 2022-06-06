@@ -5,7 +5,8 @@ from pywayland.server import Display, Listener, Signal
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
-                               GammaControlManagerV1, LayerShellV1)
+                               ExportDmabufManagerV1, GammaControlManagerV1,
+                               LayerShellV1)
 from wlroots.wlr_types import Output as wlrOutput
 from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
                                ScreencopyManagerV1, XCursorManager,
@@ -55,6 +56,7 @@ class Core():
         self.layer_shell: LayerShellV1 = LayerShellV1(self.display)
 
         # Some protocol initialization.
+        ExportDmabufManagerV1(self.display)
         GammaControlManagerV1(self.display)
         PrimarySelectionV1DeviceManager(self.display)
         ScreencopyManagerV1(self.display)
