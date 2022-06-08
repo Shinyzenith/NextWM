@@ -29,7 +29,7 @@ from pywayland.server import Listener
 from wlroots.wlr_types import InputDevice
 from xkbcommon import xkb
 
-from libnext.utils import Listeners
+from libnext.util import Listeners
 
 log = logging.getLogger("Next: Inputs")
 

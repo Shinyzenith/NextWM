@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.10
 # Copyright (c) 2022 Shinyzenith <aakashsensharma@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,46 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import argparse
-import logging
-import os
-
-import wlroots
-
-from libnext.backend import NextCore
-
-
-def main():
-    # Default log level.
-    log_level = logging.ERROR
-    wlroots.util.log.log_init(log_level)
-
-    # Setting up the parser.
-    parser = argparse.ArgumentParser(description="NextWM - Wayland compositing window manager.")
-    parser.add_argument("-d", "--debug", help="enable debug mode", action="store_true")
-    args = parser.parse_args()
-
-    if args.debug:
-        log_level = logging.DEBUG
-        wlroots.util.log.log_init(log_level)
-
-    log = logging.getLogger("NextWM")
-    logging.basicConfig(
-        level=log_level,
-        format="(%(asctime)s) %(levelname)s %(message)s",
-        datefmt="%d/%m/%y - %H:%M:%S %Z"
-    )
-
-    try:
-        import coloredlogs
-        if args.debug:
-            coloredlogs.install(logger=log, level='DEBUG')
-        else:
-            coloredlogs.install(logger=log)
-    finally:
-        log.info(f"Starting NextWM with PID: {os.getpid()}")
-        NextCore()
-
-
-if __name__ == "__main__":
-    main()
+class NextOutput:
+    def __init__(self, core, wlr_output):
+        # TODO: Finish this.
+        print()

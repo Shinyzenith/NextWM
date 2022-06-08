@@ -26,23 +26,27 @@ import logging
 import os
 
 from pywayland.server import Display, Listener
+from pywayland.protocol.wayland import WlSeat
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
-                               ExportDmabufManagerV1, GammaControlManagerV1,
-                               LayerShellV1)
+                               ExportDmabufManagerV1, GammaControlManagerV1)
 from wlroots.wlr_types import Output as wlrOutput
 from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
                                ScreencopyManagerV1, XCursorManager,
-                               XdgOutputManagerV1, XdgShell, seat)
+                               XdgOutputManagerV1, seat)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
 from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
+from wlroots.wlr_types.layer_shell_v1 import LayerShellV1, LayerSurfaceV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
+from wlroots.wlr_types.xdg_shell import XdgShell, XdgSurface, XdgSurfaceRole
 
 from libnext.inputs import NextKeyboard
-from libnext.utils import Listeners
+from libnext.outputs import NextOutput
+from libnext.util import Listeners
+from libnext.window import WindowType, XdgWindow
 
 log = logging.getLogger("Next: Backend")
 
@@ -65,6 +69,15 @@ class NextCore(Listeners):
         os.environ["WAYLAND_DISPLAY"] = self.socket.decode()
         log.info(f"WAYLAND_DISPLAY {self.socket.decode()}")
 
+        # These windows have not been mapped yet.
+        # They'll get managed when mapped.
+        self.pending_windows: set[WindowType] = set()
+
+        # List of outputs managed by the compositor.
+        self.outputs: list[NextOutput] = []
+        self._current_output: NextOutput | None = None
+
+
         # Input configuration.
         self.keyboards: list[NextKeyboard] = []
 
@@ -84,7 +97,9 @@ class NextCore(Listeners):
 
         # Setup Xdg shell
         self.xdg_shell: XdgShell = XdgShell(self.display)
+        self.add_listener(self.xdg_shell.new_surface_event, self._on_new_xdg_surface)
         self.layer_shell: LayerShellV1 = LayerShellV1(self.display)
+        self.add_listener(self.layer_shell.new_surface_event, self._on_new_layer_surface)
 
         # Some protocol initialization.
         ExportDmabufManagerV1(self.display)
@@ -109,7 +124,6 @@ class NextCore(Listeners):
             log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
 
         self.backend.start()
-        self.backend.get_session().change_vt(2)
         self.display.run()
 
         # Cleanup
@@ -139,7 +153,7 @@ class NextCore(Listeners):
         return self.xwayland.display_name or ""
 
     # Listeners
-    def _on_new_input(self, listener: Listener, device: InputDevice) -> None:
+    def _on_new_input(self, _: Listener, device: InputDevice) -> None:
         log.debug("Signal: wlr_backend_new_input_event")
         match device.device_type:
             case InputDeviceType.KEYBOARD:
@@ -148,13 +162,44 @@ class NextCore(Listeners):
             case InputDeviceType.POINTER:
                 self.cursor.attach_input_device(device)
 
-        # TODO: set the seat capabilities
+        # Fetching capabilities
+        capabilities = WlSeat.capability.pointer
+        if self.keyboards:
+            capabilities |= WlSeat.capability.keyboard
+
+        self.seat.set_capabilities(capabilities)
+        # TODO:Set libinput settings as needed after setting capabilities
+
         log.debug(
             "Device: %s of type %s detected.",
             device.name,
             device.device_type.name.lower(),
         )
 
-    def _on_new_output(self, _: Listener, __: wlrOutput) -> None:
-        # TODO: Finish this.
+    def _on_new_output(self, _: Listener, wlr_output: wlrOutput) -> None:
         log.debug("Signal: wlr_backend_new_output_event")
+
+        wlr_output.init_render(self.allocator, self.renderer)
+
+        if wlr_output.modes != []:
+            mode = wlr_output.preferred_mode()
+            if mode is None:
+                log.error("New output advertised with no output mode")
+            wlr_output.set_mode(mode)
+            wlr_output.enable()
+            wlr_output.commit()
+
+        self.outputs.append(NextOutput(self, wlr_output))
+        if not self._current_output:
+            self._current_output = self.outputs[0]
+        self.output_layout.add_auto(wlr_output)
+
+    def _on_new_xdg_surface(self, _: Listener, surface: XdgSurface) -> None:
+        log.debug("Signal: xdg_shell_new_xdg_surface_event")
+        match surface.role:
+            case XdgSurfaceRole.TOPLEVEL:
+                self.pending_windows.add(XdgWindow(self, surface))
+            # Handle XDGPOPUP
+
+    def _on_new_layer_surface(self, _: Listener, surface: LayerSurfaceV1) -> None:
+        log.debug("Signal layer_shell_new_layer_surface_event")
