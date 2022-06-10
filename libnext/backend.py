@@ -25,8 +25,8 @@
 import logging
 import os
 
-from pywayland.server import Display, Listener
 from pywayland.protocol.wayland import WlSeat
+from pywayland.server import Display, Listener
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
@@ -127,6 +127,11 @@ class NextCore(Listeners):
         self.display.run()
 
         # Cleanup
+        self.destroy()
+
+    # Resource cleanup.
+    def destroy(self) -> None:
+        self.display.terminate()
         self.destroy_listeners()
         if self.xwayland:
             self.xwayland.destroy()
