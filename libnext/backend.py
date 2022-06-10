@@ -23,6 +23,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
+import signal
 import os
 
 from pywayland.server import Display, Listener
@@ -122,7 +123,10 @@ class NextCore(Listeners):
         else:
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
-
+        
+        # Terminate on SIGINT
+        signal.signal(signal.SIGINT, self.cleanup)
+        
         self.backend.start()
         self.display.run()
 
@@ -136,7 +140,11 @@ class NextCore(Listeners):
         self.backend.destroy()
         self.display.destroy()
 
-    # Properties
+    # Cleanup on SIGNINT
+    def cleanup(self) -> None:
+        self.display.terminate()
+        
+    # Properties  
     @property
     def wayland_socket_name(self) -> str:
         """
