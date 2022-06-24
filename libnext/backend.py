@@ -36,6 +36,7 @@ from wlroots.wlr_types import (
     DataControlManagerV1,
     DataDeviceManager,
     ExportDmabufManagerV1,
+    ForeignToplevelManagerV1,
     GammaControlManagerV1,
     Output,
     OutputLayout,
@@ -43,6 +44,7 @@ from wlroots.wlr_types import (
     Scene,
     SceneNode,
     ScreencopyManagerV1,
+    Surface,
     XCursorManager,
     XdgOutputManagerV1,
     seat,
@@ -96,6 +98,7 @@ class NextCore(Listeners):
         # These windows have not been mapped yet.
         # They'll get managed when mapped.
         self.pending_windows: set[WindowType] = set()
+        self.mapped_windows: list[WindowType] = []
 
         # List of outputs managed by the compositor.
         self.outputs: list[NextOutput] = []
@@ -137,6 +140,7 @@ class NextCore(Listeners):
         _ = IdleInhibitorManagerV1(self.display)
         _ = OutputPowerManagerV1(self.display)
         self.idle = Idle(self.display)
+        self.foreign_toplevel_managerv1 = ForeignToplevelManagerV1.create(self.display)
 
         # XWayland initialization.
         # True -> lazy evaluation.
@@ -175,6 +179,55 @@ class NextCore(Listeners):
         self.seat.destroy()
         self.backend.destroy()
         self.display.destroy()
+
+    def focus_window(self, window: WindowType, surface: Surface | None = None) -> None:
+        if self.seat.destroyed:
+            return
+        if surface is None and window is not None:
+            surface = window.surface.surface
+
+        previous_surface = self.seat.keyboard_state.focused_surface
+        if previous_surface == surface:
+            log.info("Focus requested on currently focused surface. Focus unchanged.")
+            return
+
+        if previous_surface is not None:
+            if previous_surface.is_xdg_surface:
+                previous_xdg_surface = XdgSurface.from_surface(previous_surface)
+                if not window or window.surface != previous_xdg_surface:
+                    previous_xdg_surface.set_activated(False)
+                    if previous_xdg_surface.data:  # We store the ftm handle in data.
+                        previous_xdg_surface.data.set_activated(False)
+
+            if previous_surface.is_xwayland_surface:
+                previous_xwayland_surface = xwayland.Surface.from_wlr_surface(
+                    previous_surface
+                )
+                if not window or window.surface != previous_xwayland_surface:
+                    previous_xwayland_surface.activate(False)
+                    if (
+                        previous_xwayland_surface.data
+                    ):  # We store the ftm handle in data.
+                        previous_xwayland_surface.data.set_activated(False)
+
+        if not window:
+            self.seat.keyboard_clear_focus()
+            return
+
+        log.info("Focusing on surface.")
+        window.scene_node.raise_to_top()
+
+        # Preventing race conditions.
+        windows = self.mapped_windows[:]
+        windows.remove(window)
+        windows.append(window)
+        self.mapped_windows = windows
+
+        window.surface.set_activated(True)
+        if window.surface.data:
+            window.surface.set_activated(True)  # Setting ftm_handle to activated_true
+
+        self.seat.keyboard_notify_enter(window.surface.surface, self.seat.keyboard)
 
     # Properties
     @property

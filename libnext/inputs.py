@@ -23,6 +23,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
+import subprocess
 from typing import Any
 
 from pywayland.protocol.wayland import WlKeyboard
@@ -68,8 +69,9 @@ class NextKeyboard(Listeners):
         self.destroy()
 
     def _on_key(self, _listener: Listener, key_event: KeyboardKeyEvent) -> None:
-        # TODO:Modifier should be configurable.
         log.info("Signal: wlr_keyboard_key_event")
+        handled: bool = False
+        # TODO: Binds should be configurable
         if (
             self.keyboard.modifier == KeyboardModifier.ALT
             and key_event.state == WlKeyboard.key_state.pressed  # noqa
@@ -86,10 +88,19 @@ class NextKeyboard(Listeners):
 
             keysyms = [xkb_keysym[0][i] for i in range(nsyms)]
             for keysym in keysyms:
-                # NOTE: This binding is just a placeholder for now.
                 if keysym == xkb.keysym_from_name("Escape"):
-                    return self.core.display.terminate()
+                    handled = True
+                    self.core.display.terminate()
+                    break
+                if keysym == xkb.keysym_from_name("j"):
+                    handled = True
+                    subprocess.Popen(["alacritty"])
+                    break
 
+        if handled:
+            log.info("Compositor binding triggered.")
+        else:
+            log.info("Emitting key to focused client.")
             self.core.seat.set_keyboard(self.device)
             self.core.seat.keyboard_notify_key(key_event)
 

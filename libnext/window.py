@@ -23,11 +23,14 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import functools
-from typing import Generic, TypeVar, Union
+import logging
+from typing import Any, Generic, TypeVar, Union
 
+from pywayland.server import Listener
 from wlroots import PtrHasData, ffi
 from wlroots.util.edges import Edges
 from wlroots.wlr_types import SceneNode
+from wlroots.wlr_types.surface import SubSurface
 from wlroots.wlr_types.xdg_shell import XdgSurface
 
 from libnext import util
@@ -37,6 +40,7 @@ EDGES_TILED = Edges.TOP | Edges.BOTTOM | Edges.LEFT | Edges.RIGHT
 EDGES_FLOAT = Edges.NONE
 
 Surface = TypeVar("S", bound=PtrHasData)
+log = logging.getLogger("Next: Window")
 
 
 @functools.lru_cache()
@@ -54,13 +58,15 @@ class Window(Generic[Surface], Listeners):
     def __init__(self, core, surface: Surface):
         self.core = core
         self.surface = surface
-        self.scene_node = SceneNode.xdg_surface_create(self.core.scene, surface)
+        self.scene_node = SceneNode.xdg_surface_create(self.core.scene.node, surface)
         self.mapped: bool = False
 
         self.x = 0
         self.y = 0
         self.width: int = 0
+        self.float_width: int = 0
         self.height: int = 0
+        self.float_height: int = 0
         self.opacity: float = 1.0
 
         self.borderwidth: int = 0
@@ -69,8 +75,13 @@ class Window(Generic[Surface], Listeners):
         self.name: str = "<No Name>"
         self.wm_class: str | None = None
 
+        surface.data = (
+            self.ftm_handle
+        ) = self.core.foreign_toplevel_managerv1.create_handle()
+
     def destroy(self) -> None:
         self.destroy_listeners()
+        self.ftm_handle.destroy()
 
     @property
     def wid(self) -> int:
@@ -118,4 +129,45 @@ class XdgWindow(Window[XdgSurface]):
 
     def __init__(self, core, surface: XdgSurface):
         Window.__init__(self, core, surface)
+
         self.wm_class = surface.toplevel.app_id
+        self.subsurfaces: list[SubSurface] = []
+
+        self.add_listener(self.surface.map_event, self._on_map)
+        self.add_listener(surface.unmap_event, self._on_unmap)
+        # self.add_listener(surface.destroy_event, self._on_destroy)
+
+    def _on_map(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_xdg_surface_map_event")
+        if self in self.core.pending_windows:
+            log.info("Managing a new top-level window")
+            self.core.pending_windows.remove(self)
+            self.mapped = True
+
+            geometry = self.surface.get_geometry()
+            self.width = self.float_width = geometry.width
+            self.height = self.float_height = geometry.height
+
+            self.surface.set_tiled(EDGES_TILED)
+
+            if self.surface.toplevel.title:
+                self.name = self.surface.toplevel.title
+                self.ftm_handle.set_title(self.name)
+
+            if self.wm_class:
+                self.ftm_handle.set_app_id(self.wm_class or "")
+
+            # TODO: Toplevel listeners go here.
+            self.core.mapped_windows.append(self)
+            self.core.focus_window(self)
+
+    def _on_unmap(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_xdg_surface_unmap_event")
+        self.mapped = False
+        self.core.mapped_windows.remove(self)
+
+        seat = self.core.seat
+        if not seat.destroyed:
+            if self.surface.surface == seat.keyboard_state.focused_surface:
+                seat.keyboard_clear_focus()
+            # TODO: If unmapped and seat has not been destroyed, focus the last window.

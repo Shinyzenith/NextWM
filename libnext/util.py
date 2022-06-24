@@ -58,7 +58,7 @@ def rgb(x: ColorType) -> tuple[float, float, float, float]:
             alpha = x[-1]
         else:
             alpha = 1.0
-        return "#%02x%02x%02x" % (x[0] / 255.0, x[1] / 255.0, x[2] / 255.0)
+        return (x[0] / 255.0, x[1] / 255.0, x[2] / 255.0)
     elif isinstance(x, str):
         if x.startswith("#"):
             x = x[1:]
