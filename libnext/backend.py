@@ -33,7 +33,7 @@ from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
                                ExportDmabufManagerV1, GammaControlManagerV1)
 from wlroots.wlr_types import Output as wlrOutput
 from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
-                               ScreencopyManagerV1, XCursorManager,
+                               Scene, ScreencopyManagerV1, XCursorManager,
                                XdgOutputManagerV1, seat)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
@@ -75,8 +75,6 @@ class NextCore(Listeners):
 
         # List of outputs managed by the compositor.
         self.outputs: list[NextOutput] = []
-        self._current_output: NextOutput | None = None
-
 
         # Input configuration.
         self.keyboards: list[NextKeyboard] = []
@@ -89,6 +87,7 @@ class NextCore(Listeners):
 
         # Output configuration.
         self.output_layout: OutputLayout = OutputLayout()
+        self.scene: Scene = Scene(self.output_layout)
         self.output_manager: OutputManagerV1 = OutputManagerV1(self.display)
 
         # Cursor configuration
@@ -123,6 +122,7 @@ class NextCore(Listeners):
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
 
+    def run(self) -> None:
         self.backend.start()
         self.display.run()
 
@@ -131,8 +131,14 @@ class NextCore(Listeners):
 
     # Resource cleanup.
     def destroy(self) -> None:
-        self.display.terminate()
         self.destroy_listeners()
+
+        for keyboard in self.keyboards:
+            keyboard.destroy_listeners()
+
+        for output in self.outputs:
+            output.destroy_listeners()
+
         if self.xwayland:
             self.xwayland.destroy()
         self.cursor.destroy()
@@ -195,8 +201,6 @@ class NextCore(Listeners):
             wlr_output.commit()
 
         self.outputs.append(NextOutput(self, wlr_output))
-        if not self._current_output:
-            self._current_output = self.outputs[0]
         self.output_layout.add_auto(wlr_output)
 
     def _on_new_xdg_surface(self, _: Listener, surface: XdgSurface) -> None:
