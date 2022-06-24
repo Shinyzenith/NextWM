@@ -55,5 +55,5 @@ class NextKeyboard(Listeners):
 
     # Listeners
     def _on_destroy(self, listener: Listener, _: Any) -> None:
-        log.debug("Signal: wlr_keyboard_destroy_event")
+        log.info("Signal: wlr_keyboard_destroy_event")
         self.destroy()

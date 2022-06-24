@@ -61,7 +61,7 @@ class NextCore(Listeners):
         self.event_loop = self.display.get_event_loop()
 
         for handled_signal in [signal.SIGINT, signal.SIGTERM, signal.SIGABRT, signal.SIGKILL]:
-            self.event_loop.add_signal(handled_signal, self.signal_callback, self.display);
+            self.event_loop.add_signal(handled_signal, self.signal_callback, self.display)
 
         (
             self.compositor,
@@ -173,7 +173,7 @@ class NextCore(Listeners):
 
     # Listeners
     def _on_new_input(self, _: Listener, device: InputDevice) -> None:
-        log.debug("Signal: wlr_backend_new_input_event")
+        log.info("Signal: wlr_backend_new_input_event")
         match device.device_type:
             case InputDeviceType.KEYBOARD:
                 self.keyboards.append(NextKeyboard(self, device))
@@ -189,14 +189,14 @@ class NextCore(Listeners):
         self.seat.set_capabilities(capabilities)
         # TODO:Set libinput settings as needed after setting capabilities
 
-        log.debug(
+        log.info(
             "Device: %s of type %s detected.",
             device.name,
             device.device_type.name.lower(),
         )
 
     def _on_new_output(self, _: Listener, wlr_output: wlrOutput) -> None:
-        log.debug("Signal: wlr_backend_new_output_event")
+        log.info("Signal: wlr_backend_new_output_event")
 
         wlr_output.init_render(self.allocator, self.renderer)
 
@@ -208,15 +208,14 @@ class NextCore(Listeners):
             wlr_output.enable()
             wlr_output.commit()
 
-        self.outputs.append(NextOutput(self, wlr_output))
-        self.output_layout.add_auto(wlr_output)
+        NextOutput(self, wlr_output)
 
     def _on_new_xdg_surface(self, _: Listener, surface: XdgSurface) -> None:
-        log.debug("Signal: xdg_shell_new_xdg_surface_event")
+        log.info("Signal: xdg_shell_new_xdg_surface_event")
         match surface.role:
             case XdgSurfaceRole.TOPLEVEL:
                 self.pending_windows.add(XdgWindow(self, surface))
             # Handle XDGPOPUP
 
     def _on_new_layer_surface(self, _: Listener, surface: LayerSurfaceV1) -> None:
-        log.debug("Signal layer_shell_new_layer_surface_event")
+        log.info("Signal layer_shell_new_layer_surface_event")

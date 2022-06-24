@@ -22,6 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 from typing import Any
 
 from pywayland.server import Listener
@@ -29,6 +30,8 @@ from wlroots.util.clock import Timespec
 from wlroots.wlr_types import OutputDamage
 
 from libnext.util import Listeners
+
+log = logging.getLogger("Next: Outputs")
 
 
 class NextOutput(Listeners):
@@ -38,7 +41,8 @@ class NextOutput(Listeners):
         self.damage: OutputDamage = OutputDamage(wlr_output)
         self.x, self.y = self.core.output_layout.output_coords(wlr_output)
 
-        wlr_output.data = self
+        self.core.output_layout.add_auto(self.wlr_output)
+        self.core.outputs.append(self)
 
         self.add_listener(wlr_output.destroy_event, self._on_destroy)
         self.add_listener(self.damage.frame_event, self._on_frame)
@@ -48,9 +52,11 @@ class NextOutput(Listeners):
         self.destroy_listeners()
 
     def _on_destroy(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_output_destroy_event")
         self.destroy()
 
     def _on_frame(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_output_frame_event")
         scene_output = self.core.scene.get_scene_output(self.wlr_output)
         scene_output.commit()
         now = Timespec.get_monotonic_time()

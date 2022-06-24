@@ -26,10 +26,8 @@
 import argparse
 import logging
 import os
-from functools import partial
 
 import wlroots
-from pywayland.server import Display
 
 from libnext.backend import NextCore
 
