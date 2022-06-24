@@ -31,12 +31,22 @@ from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
-from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
-                               ExportDmabufManagerV1, GammaControlManagerV1)
-from wlroots.wlr_types import Output as wlrOutput
-from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
-                               Scene, SceneNode, ScreencopyManagerV1,
-                               XCursorManager, XdgOutputManagerV1, seat)
+from wlroots.wlr_types import (
+    Cursor,
+    DataControlManagerV1,
+    DataDeviceManager,
+    ExportDmabufManagerV1,
+    GammaControlManagerV1,
+    Output,
+    OutputLayout,
+    PrimarySelectionV1DeviceManager,
+    Scene,
+    SceneNode,
+    ScreencopyManagerV1,
+    XCursorManager,
+    XdgOutputManagerV1,
+    seat,
+)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
 from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
@@ -61,14 +71,22 @@ class NextCore(Listeners):
         self.display: Display = Display()
         self.event_loop = self.display.get_event_loop()
 
-        for handled_signal in [signal.SIGINT, signal.SIGTERM, signal.SIGABRT, signal.SIGKILL, signal.SIGQUIT]:
-            self.event_loop.add_signal(handled_signal, self.signal_callback, self.display)
+        for handled_signal in [
+            signal.SIGINT,
+            signal.SIGTERM,
+            signal.SIGABRT,
+            signal.SIGKILL,
+            signal.SIGQUIT,
+        ]:
+            self.event_loop.add_signal(
+                handled_signal, self.signal_callback, self.display
+            )
 
         (
             self.compositor,
             self.allocator,
             self.renderer,
-            self.backend
+            self.backend,
         ) = wlroots_helper.build_compositor(self.display)
         self.renderer.init_display(self.display)
         self.socket = self.display.add_socket()
@@ -104,7 +122,9 @@ class NextCore(Listeners):
         self.xdg_shell: XdgShell = XdgShell(self.display)
         self.add_listener(self.xdg_shell.new_surface_event, self._on_new_xdg_surface)
         self.layer_shell: LayerShellV1 = LayerShellV1(self.display)
-        self.add_listener(self.layer_shell.new_surface_event, self._on_new_layer_surface)
+        self.add_listener(
+            self.layer_shell.new_surface_event, self._on_new_layer_surface
+        )
 
         # Some protocol initialization.
         ExportDmabufManagerV1(self.display)
@@ -196,7 +216,7 @@ class NextCore(Listeners):
             device.device_type.name.lower(),
         )
 
-    def _on_new_output(self, _: Listener, wlr_output: wlrOutput) -> None:
+    def _on_new_output(self, _: Listener, wlr_output: Output) -> None:
         log.info("Signal: wlr_backend_new_output_event")
 
         wlr_output.init_render(self.allocator, self.renderer)

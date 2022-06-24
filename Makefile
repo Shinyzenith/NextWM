@@ -18,6 +18,6 @@ setup:
 	@python3 ./libnext/libinput_ffi_build.py
 
 lint:
-	@TOXENV=codestyle,flake,py310 tox
+	@TOXENV=codestyle,flake,black,py310 tox
 
 .PHONY: run clean lint

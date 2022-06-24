@@ -38,7 +38,9 @@ def main():
     wlroots.util.log.log_init(log_level)
 
     # Setting up the parser.
-    parser = argparse.ArgumentParser(description="NextWM - Wayland compositing window manager.")
+    parser = argparse.ArgumentParser(
+        description="NextWM - Wayland compositing window manager."
+    )
     parser.add_argument("-d", "--debug", help="enable debug mode", action="store_true")
     args = parser.parse_args()
 
@@ -50,13 +52,14 @@ def main():
     logging.basicConfig(
         level=log_level,
         format="(%(asctime)s) %(levelname)s %(message)s",
-        datefmt="%d/%m/%y - %H:%M:%S %Z"
+        datefmt="%d/%m/%y - %H:%M:%S %Z",
     )
 
     try:
         import coloredlogs
+
         if args.debug:
-            coloredlogs.install(logger=log, level='DEBUG')
+            coloredlogs.install(logger=log, level="DEBUG")
         else:
             coloredlogs.install(logger=log)
     finally:

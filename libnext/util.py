@@ -68,9 +68,7 @@ def rgb(x: ColorType) -> tuple[float, float, float, float]:
         else:
             alpha = 1.0
         if len(x) not in (3, 6, 8):
-            raise ValueError(
-                "RGB specifier must be 3, 6 or 8 characters long."
-            )
+            raise ValueError("RGB specifier must be 3, 6 or 8 characters long.")
         if len(x) == 3:
             vals = tuple(int(i, 16) * 17 for i in x)
         else:

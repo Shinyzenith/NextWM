@@ -70,17 +70,18 @@ class NextKeyboard(Listeners):
     def _on_key(self, _listener: Listener, key_event: KeyboardKeyEvent) -> None:
         # TODO:Modifier should be configurable.
         log.info("Signal: wlr_keyboard_key_event")
-        if (self.keyboard.modifier == KeyboardModifier.ALT and key_event.state == WlKeyboard.key_state.pressed):  # noqa
+        if (
+            self.keyboard.modifier == KeyboardModifier.ALT
+            and key_event.state == WlKeyboard.key_state.pressed  # noqa
+        ):
             # Translate libinput keycode -> xkbcommon
             keycode = key_event.keycode + 8
 
-            layout_index = lib.xkb_state_key_get_layout(self.keyboard._ptr.xkb_state, keycode)
+            layout_index = lib.xkb_state_key_get_layout(
+                self.keyboard._ptr.xkb_state, keycode
+            )
             nsyms = lib.xkb_keymap_key_get_syms_by_level(
-                self.keyboard._ptr.keymap,
-                keycode,
-                layout_index,
-                0,
-                xkb_keysym
+                self.keyboard._ptr.keymap, keycode, layout_index, 0, xkb_keysym
             )
 
             keysyms = [xkb_keysym[0][i] for i in range(nsyms)]

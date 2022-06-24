@@ -50,6 +50,7 @@ class Window(Generic[Surface], Listeners):
     """
     Generic class for windows.
     """
+
     def __init__(self, core, surface: Surface):
         self.core = core
         self.surface = surface
@@ -114,6 +115,7 @@ class XdgWindow(Window[XdgSurface]):
     """
     Wayland client connecting over xdg_shell
     """
+
     def __init__(self, core, surface: XdgSurface):
         Window.__init__(self, core, surface)
         self.wm_class = surface.toplevel.app_id
