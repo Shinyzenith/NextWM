@@ -25,13 +25,17 @@
 import logging
 from typing import Any
 
+from pywayland.protocol.wayland import WlKeyboard
 from pywayland.server import Listener
+from wlroots import ffi, lib
 from wlroots.wlr_types import InputDevice
+from wlroots.wlr_types.keyboard import KeyboardKeyEvent, KeyboardModifier
 from xkbcommon import xkb
 
 from libnext.util import Listeners
 
 log = logging.getLogger("Next: Inputs")
+xkb_keysym = ffi.new("const xkb_keysym_t **")
 
 
 class NextKeyboard(Listeners):
@@ -44,8 +48,13 @@ class NextKeyboard(Listeners):
         self.keyboard.set_repeat_info(100, 300)
         self.xkb_context = xkb.Context()
 
-        # TODO: Bind more listeners.
+        # TODO: Populate this keymap call later.
+        self.keymap = self.xkb_context.keymap_new_from_names()
+        self.keyboard.set_keymap(self.keymap)
+
         self.add_listener(self.keyboard.destroy_event, self._on_destroy)
+        self.add_listener(self.keyboard.key_event, self._on_key)
+        self.add_listener(self.keyboard.modifiers_event, self._on_modifiers)
 
     def destroy(self) -> None:
         self.destroy_listeners()
@@ -54,6 +63,36 @@ class NextKeyboard(Listeners):
             self.seat.set_keyboard(self.core.keyboards[-1].device)
 
     # Listeners
-    def _on_destroy(self, listener: Listener, _: Any) -> None:
+    def _on_destroy(self, _listener: Listener, _data: Any) -> None:
         log.info("Signal: wlr_keyboard_destroy_event")
         self.destroy()
+
+    def _on_key(self, _listener: Listener, key_event: KeyboardKeyEvent) -> None:
+        # TODO:Modifier should be configurable.
+        log.info("Signal: wlr_keyboard_key_event")
+        if (self.keyboard.modifier == KeyboardModifier.ALT and key_event.state == WlKeyboard.key_state.pressed):  # noqa
+            # Translate libinput keycode -> xkbcommon
+            keycode = key_event.keycode + 8
+
+            layout_index = lib.xkb_state_key_get_layout(self.keyboard._ptr.xkb_state, keycode)
+            nsyms = lib.xkb_keymap_key_get_syms_by_level(
+                self.keyboard._ptr.keymap,
+                keycode,
+                layout_index,
+                0,
+                xkb_keysym
+            )
+
+            keysyms = [xkb_keysym[0][i] for i in range(nsyms)]
+            for keysym in keysyms:
+                # NOTE: This binding is just a placeholder for now.
+                if keysym == xkb.keysym_from_name("Escape"):
+                    return self.core.display.terminate()
+
+            self.core.seat.set_keyboard(self.device)
+            self.core.seat.keyboard_notify_key(key_event)
+
+    def _on_modifiers(self, _listener: Listener, _data: Any):
+        log.info("Signal: wlr_keyboard_modifiers_event")
+        self.core.seat.set_keyboard(self.device)
+        self.core.seat.keyboard_notify_modifiers(self.keyboard.modifiers)
