@@ -36,6 +36,7 @@ from libnext.backend import NextCore
 
 handled_signals = [signal.SIGINT, signal.SIGTERM, signal.SIGABRT]
 
+
 def main():
     # Default log level.
     log_level = logging.ERROR
@@ -66,7 +67,7 @@ def main():
     finally:
         log.info(f"Starting NextWM with PID: {os.getpid()}")
 
-        def signal_callback(display: Display, sig_num: int, frame:int):
+        def signal_callback(display: Display, sig_num: int, frame: int):
             del sig_num, frame
             log.info("Terminating event loop.")
             display.terminate()
@@ -75,6 +76,7 @@ def main():
         for handled_signal in handled_signals:
             signal.signal(handled_signal, partial(signal_callback, server.display))
         server.run()
+
 
 if __name__ == "__main__":
     main()
