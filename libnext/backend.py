@@ -24,6 +24,7 @@
 
 import logging
 import os
+import signal
 
 from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
@@ -58,6 +59,10 @@ class NextCore(Listeners):
         """
         self.display: Display = Display()
         self.event_loop = self.display.get_event_loop()
+
+        for handled_signal in [signal.SIGINT, signal.SIGTERM, signal.SIGABRT, signal.SIGKILL]:
+            self.event_loop.add_signal(handled_signal, self.signal_callback, self.display);
+
         (
             self.compositor,
             self.allocator,
@@ -122,12 +127,15 @@ class NextCore(Listeners):
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
 
-    def run(self) -> None:
         self.backend.start()
         self.display.run()
 
         # Cleanup
         self.destroy()
+
+    def signal_callback(self, sig_num: int, display: Display):
+        log.info("Terminating event loop.")
+        display.terminate()
 
     # Resource cleanup.
     def destroy(self) -> None:
