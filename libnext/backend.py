@@ -25,6 +25,7 @@
 import logging
 import os
 import signal
+from typing import cast
 
 from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
@@ -34,8 +35,8 @@ from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
                                ExportDmabufManagerV1, GammaControlManagerV1)
 from wlroots.wlr_types import Output as wlrOutput
 from wlroots.wlr_types import (OutputLayout, PrimarySelectionV1DeviceManager,
-                               Scene, ScreencopyManagerV1, XCursorManager,
-                               XdgOutputManagerV1, seat)
+                               Scene, SceneNode, ScreencopyManagerV1,
+                               XCursorManager, XdgOutputManagerV1, seat)
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
 from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
@@ -60,7 +61,7 @@ class NextCore(Listeners):
         self.display: Display = Display()
         self.event_loop = self.display.get_event_loop()
 
-        for handled_signal in [signal.SIGINT, signal.SIGTERM, signal.SIGABRT, signal.SIGKILL]:
+        for handled_signal in [signal.SIGINT, signal.SIGTERM, signal.SIGABRT, signal.SIGKILL, signal.SIGQUIT]:
             self.event_loop.add_signal(handled_signal, self.signal_callback, self.display)
 
         (
@@ -215,7 +216,13 @@ class NextCore(Listeners):
         match surface.role:
             case XdgSurfaceRole.TOPLEVEL:
                 self.pending_windows.add(XdgWindow(self, surface))
-            # Handle XDGPOPUP
+
+            case XdgSurfaceRole.POPUP:
+                parent_surface = XdgSurface.from_surface(surface.popup.parent)
+                parent_scene_node = cast(SceneNode, parent_surface.data)
+
+                scene_node = SceneNode.xdg_surface_create(parent_scene_node, surface)
+                surface.data = scene_node
 
     def _on_new_layer_surface(self, _: Listener, surface: LayerSurfaceV1) -> None:
         log.info("Signal layer_shell_new_layer_surface_event")

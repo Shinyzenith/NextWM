@@ -27,6 +27,7 @@ from typing import Generic, TypeVar, Union
 
 from wlroots import PtrHasData, ffi
 from wlroots.util.edges import Edges
+from wlroots.wlr_types import SceneNode
 from wlroots.wlr_types.xdg_shell import XdgSurface
 
 from libnext import util
@@ -52,6 +53,7 @@ class Window(Generic[Surface], Listeners):
     def __init__(self, core, surface: Surface):
         self.core = core
         self.surface = surface
+        self.scene_node = SceneNode.xdg_surface_create(self.core.scene, surface)
         self.mapped: bool = False
 
         self.x = 0
