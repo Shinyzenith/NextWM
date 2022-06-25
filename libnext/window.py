@@ -31,7 +31,7 @@ from wlroots import PtrHasData, ffi
 from wlroots.util.edges import Edges
 from wlroots.wlr_types import SceneNode
 from wlroots.wlr_types.surface import SubSurface
-from wlroots.wlr_types.xdg_shell import XdgSurface
+from wlroots.wlr_types.xdg_shell import XdgPopup, XdgSurface
 
 from libnext import util
 from libnext.util import Listeners
@@ -83,40 +83,20 @@ class Window(Generic[Surface], Listeners):
         self.destroy_listeners()
         self.ftm_handle.destroy()
 
-    @property
-    def wid(self) -> int:
+    def _on_destroy(self, _listener: Listener, _data: Any) -> None:
         """
-        Return the window ID.
+        Window destroy callback.
         """
-        return self._wid
+        log.info("Signal: window_destroy_event")
+        if self.mapped:
+            log.warn("Window destroy signal sent before unmap event.")
+            self.mapped = False
+            self.core.mapped_windows.remove(self)
 
-    @property
-    def width(self) -> int:
-        """
-        Return the window width.
-        """
-        return self._width
+        if self in self.core.pending_windows:
+            self.core.pending_windows.remove(self)
 
-    @width.setter
-    def width(self, width: int) -> None:
-        """
-        Set the window width.
-        """
-        self._width = width
-
-    @property
-    def height(self) -> int:
-        """
-        Return the window height.
-        """
-        return self._height
-
-    @height.setter
-    def height(self, height: int) -> None:
-        """
-        Set the window height.
-        """
-        self._height = height
+        self.destroy()
 
 
 WindowType = Union[Window]
@@ -131,11 +111,13 @@ class XdgWindow(Window[XdgSurface]):
         Window.__init__(self, core, surface)
 
         self.wm_class = surface.toplevel.app_id
+        self.popups: list[XdgPopupWindow] = []
         self.subsurfaces: list[SubSurface] = []
 
+        self.add_listener(self.surface.destroy_event, self._on_destroy)
         self.add_listener(self.surface.map_event, self._on_map)
-        self.add_listener(surface.unmap_event, self._on_unmap)
-        # self.add_listener(surface.destroy_event, self._on_destroy)
+        self.add_listener(self.surface.new_popup_event, self._on_new_popup)
+        self.add_listener(self.surface.unmap_event, self._on_unmap)
 
     def _on_map(self, _listener: Listener, _data: Any) -> None:
         log.info("Signal: wlr_xdg_surface_map_event")
@@ -161,6 +143,10 @@ class XdgWindow(Window[XdgSurface]):
             self.core.mapped_windows.append(self)
             self.core.focus_window(self)
 
+    def _on_new_popup(self, _listener: Listener, xdg_popup: XdgPopup) -> None:
+        log.info("Signal: wlr_xdg_surface_new_popup_event")
+        self.popups.append(XdgPopupWindow(self, xdg_popup))
+
     def _on_unmap(self, _listener: Listener, _data: Any) -> None:
         log.info("Signal: wlr_xdg_surface_unmap_event")
         self.mapped = False
@@ -171,3 +157,12 @@ class XdgWindow(Window[XdgSurface]):
             if self.surface.surface == seat.keyboard_state.focused_surface:
                 seat.keyboard_clear_focus()
             # TODO: If unmapped and seat has not been destroyed, focus the last window.
+
+
+class XdgPopupWindow(Listeners):
+    # parent: Any because it can be a nested popup too aka XdgPopupWindow.
+    def __init__(self, parent: XdgWindow | Any, xdg_popup: XdgPopup):
+        self.scene_node = SceneNode.xdg_surface_create(
+            parent.scene_node, parent.surface
+        )
+        # TODO: Finish this.

@@ -25,7 +25,6 @@
 import logging
 import os
 import signal
-from typing import cast
 
 from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
@@ -42,7 +41,6 @@ from wlroots.wlr_types import (
     OutputLayout,
     PrimarySelectionV1DeviceManager,
     Scene,
-    SceneNode,
     ScreencopyManagerV1,
     Surface,
     XCursorManager,
@@ -296,18 +294,8 @@ class NextCore(Listeners):
 
     def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
         log.info("Signal: xdg_shell_new_xdg_surface_event")
-        match surface.role:
-            case XdgSurfaceRole.TOPLEVEL:
-                self.pending_windows.add(XdgWindow(self, surface))
-
-            # NOTE: Maybe we don't need this and just need to listen for popup event on any toplevel?
-            # NOTE: Check what sway and river do on new xdg_surface
-            case XdgSurfaceRole.POPUP:
-                parent_surface = XdgSurface.from_surface(surface.popup.parent)
-                parent_scene_node = cast(SceneNode, parent_surface.data)
-
-                scene_node = SceneNode.xdg_surface_create(parent_scene_node, surface)
-                surface.data = scene_node
+        if surface.role == XdgSurfaceRole.TOPLEVEL:
+            self.pending_windows.add(XdgWindow(self, surface))
 
     def _on_new_layer_surface(
         self, _listener: Listener, surface: LayerSurfaceV1
