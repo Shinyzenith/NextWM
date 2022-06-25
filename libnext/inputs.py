@@ -61,7 +61,7 @@ class NextKeyboard(Listeners):
         self.destroy_listeners()
         self.core.keyboards.remove(self)
         if self.core.keyboards and self.core.seat.keyboard.destroyed:
-            self.seat.set_keyboard(self.core.keyboards[-1].device)
+            self.core.seat.set_keyboard(self.core.keyboards[-1].device)
 
     # Listeners
     def _on_destroy(self, _listener: Listener, _data: Any) -> None:
@@ -70,6 +70,9 @@ class NextKeyboard(Listeners):
 
     def _on_key(self, _listener: Listener, key_event: KeyboardKeyEvent) -> None:
         log.info("Signal: wlr_keyboard_key_event")
+        # TODO: Add option to hide cursor when typing.
+        # self.core.cursor.hide() -> From river.
+
         # Translate libinput keycode -> xkbcommon
         keycode = key_event.keycode + 8
 
@@ -81,6 +84,7 @@ class NextKeyboard(Listeners):
         )
         keysyms = [xkb_keysym[0][i] for i in range(nsyms)]
         for keysym in keysyms:
+            # TODO: Support change_vt()
             if (
                 self.keyboard.modifier == KeyboardModifier.ALT
                 and key_event.state == WlKeyboard.key_state.pressed  # noqa
@@ -92,7 +96,7 @@ class NextKeyboard(Listeners):
                     subprocess.Popen(["alacritty"])
                     return
 
-        log.info("Emitting key to focused client.")
+        log.info("Emitting key to focused client")
         self.core.seat.set_keyboard(self.device)
         self.core.seat.keyboard_notify_key(key_event)
 
