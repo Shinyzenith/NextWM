@@ -90,7 +90,8 @@ class NextKeyboard(Listeners):
                 and key_event.state == WlKeyboard.key_state.pressed  # noqa
             ):
                 if keysym == xkb.keysym_from_name("Escape"):
-                    self.core.display.terminate()
+                    # We don't care for sig_num anyways.
+                    self.core.signal_callback(0, self.core.display)
                     return
 
                 if keysym == xkb.keysym_from_name("l"):

@@ -25,6 +25,7 @@
 import logging
 import os
 import signal
+from typing import Any
 
 from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
@@ -54,6 +55,7 @@ from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
 from wlroots.wlr_types.layer_shell_v1 import LayerShellV1, LayerSurfaceV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
+from wlroots.wlr_types.pointer import PointerEventButton
 from wlroots.wlr_types.xdg_shell import XdgShell, XdgSurface, XdgSurfaceRole
 
 from libnext.inputs import NextKeyboard
@@ -119,6 +121,11 @@ class NextCore(Listeners):
         # Cursor configuration
         self.cursor: Cursor = Cursor(self.output_layout)
         self.cursor_manager: XCursorManager = XCursorManager(24)
+        self.add_listener(self.cursor.button_event, self._on_cursor_button)
+        self.add_listener(self.cursor.frame_event, self._on_cursor_frame)
+        # TODO: On motion check the view under the cursor and focus.
+        # Or focus on click?
+        self.add_listener(self.cursor.motion_event, self._on_cursor_motion)
 
         # Setup Xdg shell
         self.xdg_shell: XdgShell = XdgShell(self.display)
@@ -167,7 +174,7 @@ class NextCore(Listeners):
         self.destroy()
 
     def signal_callback(self, sig_num: int, display: Display):
-        log.info("Terminating event loop.")
+        log.info("Terminating event loop")
         display.terminate()
 
     # Resource cleanup.
@@ -183,10 +190,12 @@ class NextCore(Listeners):
         if self.xwayland:
             self.xwayland.destroy()
         self.cursor.destroy()
+        self.cursor_manager.destroy()
         self.output_layout.destroy()
         self.seat.destroy()
         self.backend.destroy()
         self.display.destroy()
+        log.info("Server destroyed")
 
     def focus_window(self, window: WindowType, surface: Surface | None = None) -> None:
         if self.seat.destroyed:
@@ -269,7 +278,7 @@ class NextCore(Listeners):
             capabilities |= WlSeat.capability.keyboard
 
         self.seat.set_capabilities(capabilities)
-        # TODO:Set libinput settings as needed after setting capabilities
+        # TODO: Set libinput settings as needed after setting capabilities
 
         log.info(
             "Device: %s of type %s detected.",
@@ -291,6 +300,27 @@ class NextCore(Listeners):
             wlr_output.commit()
 
         NextOutput(self, wlr_output)
+
+    def _on_cursor_frame(self, _listener: Listener, data: Any) -> None:
+        log.info("Signal: wlr_cursor_frame_event")
+        self.seat.pointer_notify_frame()
+
+    def _on_cursor_motion(self, _listener: Listener, data: Any) -> None:
+        # TODO: This should get abstracted into it's own function to check if
+        # image shoud be ptr or resize type.
+        # TODO: Finish this.
+        log.info("Signal: wlr_cursor_motion_event")
+        self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
+
+    def _on_cursor_button(self, _listener: Listener, event: PointerEventButton) -> None:
+        log.info("Signal: wlr_cursor_button_event")
+        self.idle.notify_activity(self.seat)
+        # TODO: If config wants focus_by_hover then do so, else focus_by_click.
+
+        # NOTE: Maybe support compositor bindings involving buttons?
+        self.seat.pointer_notify_button(
+            event.time_msec, event.button, event.button_state
+        )
 
     def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
         log.info("Signal: xdg_shell_new_xdg_surface_event")
