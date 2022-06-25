@@ -59,5 +59,9 @@ class NextOutput(Listeners):
         log.info("Signal: wlr_output_frame_event")
         scene_output = self.core.scene.get_scene_output(self.wlr_output)
         scene_output.commit()
+
+        # This function is a no-op when hardware cursors are in use.
+        self.wlr_output.render_software_cursors()
+
         now = Timespec.get_monotonic_time()
         scene_output.send_frame_done(now)
