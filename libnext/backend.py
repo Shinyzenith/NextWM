@@ -49,13 +49,18 @@ from wlroots.wlr_types import (
     seat,
     xdg_decoration_v1,
 )
+from wlroots.wlr_types.cursor import WarpMode
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
 from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
 from wlroots.wlr_types.layer_shell_v1 import LayerShellV1, LayerSurfaceV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
-from wlroots.wlr_types.pointer import PointerEventButton
+from wlroots.wlr_types.pointer import (
+    PointerEventButton,
+    PointerEventMotion,
+    PointerEventMotionAbsolute,
+)
 from wlroots.wlr_types.xdg_shell import XdgShell, XdgSurface, XdgSurfaceRole
 
 from libnext.inputs import NextKeyboard
@@ -126,6 +131,9 @@ class NextCore(Listeners):
         # TODO: On motion check the view under the cursor and focus.
         # Or focus on click?
         self.add_listener(self.cursor.motion_event, self._on_cursor_motion)
+        self.add_listener(
+            self.cursor.motion_absolute_event, self._on_cursor_motion_absolute
+        )
 
         # Setup Xdg shell
         self.xdg_shell: XdgShell = XdgShell(self.display)
@@ -305,12 +313,29 @@ class NextCore(Listeners):
         log.info("Signal: wlr_cursor_frame_event")
         self.seat.pointer_notify_frame()
 
-    def _on_cursor_motion(self, _listener: Listener, data: Any) -> None:
+    def _on_cursor_motion(
+        self, _listener: Listener, event_motion: PointerEventMotion
+    ) -> None:
         # TODO: This should get abstracted into it's own function to check if
         # image shoud be ptr or resize type.
         # TODO: Finish this.
         log.info("Signal: wlr_cursor_motion_event")
+        self.cursor.move(
+            event_motion.delta_x, event_motion.delta_y, input_device=event_motion.device
+        )
         self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
+
+    def _on_cursor_motion_absolute(
+        self, _listener: Listener, event_motion: PointerEventMotionAbsolute
+    ) -> None:
+        log.info("Signal: wlr_cursor_motion_absolute_event")
+        self.cursor.warp(
+            WarpMode.LayoutClosest,
+            event_motion.x,
+            event_motion.y,
+            input_device=event_motion.device,
+        )
+        # TODO: Finish this.
 
     def _on_cursor_button(self, _listener: Listener, event: PointerEventButton) -> None:
         log.info("Signal: wlr_cursor_button_event")
