@@ -92,6 +92,9 @@ class Window(Generic[Surface], Listeners):
             log.warn("Window destroy signal sent before unmap event.")
             self.mapped = False
             self.core.mapped_windows.remove(self)
+            # Focus on the next window.
+            if len(self.core.mapped_windows) >= 1:
+                self.core.focus_window(self.core.mapped_windows[-1])
 
         if self in self.core.pending_windows:
             self.core.pending_windows.remove(self)
@@ -152,11 +155,9 @@ class XdgWindow(Window[XdgSurface]):
         self.mapped = False
         self.core.mapped_windows.remove(self)
 
-        seat = self.core.seat
-        if not seat.destroyed:
-            if self.surface.surface == seat.keyboard_state.focused_surface:
-                seat.keyboard_clear_focus()
-            # TODO: If unmapped and seat has not been destroyed, focus the last window.
+        # Focus on the next window.
+        if len(self.core.mapped_windows) >= 1:
+            self.core.focus_window(self.core.mapped_windows[-1])
 
 
 class XdgPopupWindow(Listeners):
