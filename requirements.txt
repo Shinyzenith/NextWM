@@ -1,6 +1,4 @@
-cairocffi
 cffi
 pywayland
 pywlroots
-xcffib
 xkbcommon
