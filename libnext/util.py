@@ -75,9 +75,9 @@ def rgb(x: ColorType) -> tuple[float, float, float, float]:
             vals = tuple(int(i, 16) for i in (x[0:2], x[2:4], x[4:6]))
         if len(x) == 8:
             alpha = int(x[6:8], 16) / 255.0
-            vals += (alpha,)
-            return rgb(vals)
-        raise ValueError("Invalid RGB specifier.")
+        vals += (alpha,)
+        return rgb(vals)
+    raise ValueError("Invalid RGB specifier.")
 
 
 def hex(x: ColorType) -> str:
