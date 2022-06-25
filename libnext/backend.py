@@ -48,6 +48,7 @@ from wlroots.wlr_types import (
     XCursorManager,
     XdgOutputManagerV1,
     seat,
+    xdg_decoration_v1,
 )
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
@@ -139,6 +140,15 @@ class NextCore(Listeners):
         # output_power_manager = OutputPowerManagerV1(self.display)
         _ = IdleInhibitorManagerV1(self.display)
         _ = OutputPowerManagerV1(self.display)
+
+        self.xdg_decoration_manager_v1 = (
+            xdg_decoration_v1.XdgDecorationManagerV1.create(self.display)
+        )
+        self.add_listener(
+            self.xdg_decoration_manager_v1.new_toplevel_decoration_event,
+            self._on_new_toplevel_decoration,
+        )
+
         self.idle = Idle(self.display)
         self.foreign_toplevel_managerv1 = ForeignToplevelManagerV1.create(self.display)
 
@@ -246,7 +256,7 @@ class NextCore(Listeners):
         return self.xwayland.display_name or ""
 
     # Listeners
-    def _on_new_input(self, _: Listener, device: InputDevice) -> None:
+    def _on_new_input(self, _listener: Listener, device: InputDevice) -> None:
         log.info("Signal: wlr_backend_new_input_event")
         match device.device_type:
             case InputDeviceType.KEYBOARD:
@@ -269,7 +279,7 @@ class NextCore(Listeners):
             device.device_type.name.lower(),
         )
 
-    def _on_new_output(self, _: Listener, wlr_output: Output) -> None:
+    def _on_new_output(self, _listener: Listener, wlr_output: Output) -> None:
         log.info("Signal: wlr_backend_new_output_event")
 
         wlr_output.init_render(self.allocator, self.renderer)
@@ -284,12 +294,14 @@ class NextCore(Listeners):
 
         NextOutput(self, wlr_output)
 
-    def _on_new_xdg_surface(self, _: Listener, surface: XdgSurface) -> None:
+    def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
         log.info("Signal: xdg_shell_new_xdg_surface_event")
         match surface.role:
             case XdgSurfaceRole.TOPLEVEL:
                 self.pending_windows.add(XdgWindow(self, surface))
 
+            # NOTE: Maybe we don't need this and just need to listen for popup event on any toplevel?
+            # NOTE: Check what sway and river do on new xdg_surface
             case XdgSurfaceRole.POPUP:
                 parent_surface = XdgSurface.from_surface(surface.popup.parent)
                 parent_scene_node = cast(SceneNode, parent_surface.data)
@@ -297,5 +309,14 @@ class NextCore(Listeners):
                 scene_node = SceneNode.xdg_surface_create(parent_scene_node, surface)
                 surface.data = scene_node
 
-    def _on_new_layer_surface(self, _: Listener, surface: LayerSurfaceV1) -> None:
-        log.info("Signal layer_shell_new_layer_surface_event")
+    def _on_new_layer_surface(
+        self, _listener: Listener, surface: LayerSurfaceV1
+    ) -> None:
+        log.info("Signal: layer_shell_new_layer_surface_event")
+
+    def _on_new_toplevel_decoration(
+        self, _listener: Listener, decoration: xdg_decoration_v1.XdgToplevelDecorationV1
+    ) -> None:
+        log.info("Signal: xdg_decoration_v1_new_toplevel_decoration_event")
+        # TODO: https://github.com/Shinyzenith/NextWM/issues/10
+        decoration.set_mode(xdg_decoration_v1.XdgToplevelDecorationV1Mode.SERVER_SIDE)
