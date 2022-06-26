@@ -57,6 +57,7 @@ from wlroots.wlr_types.layer_shell_v1 import LayerShellV1, LayerSurfaceV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
 from wlroots.wlr_types.pointer import (
+    PointerEventAxis,
     PointerEventButton,
     PointerEventMotion,
     PointerEventMotionAbsolute,
@@ -96,10 +97,15 @@ class NextCore(Listeners):
             self.renderer,
             self.backend,
         ) = wlroots_helper.build_compositor(self.display)
+
         self.renderer.init_display(self.display)
         self.socket = self.display.add_socket()
+
         os.environ["WAYLAND_DISPLAY"] = self.socket.decode()
         log.info(f"WAYLAND_DISPLAY {self.socket.decode()}")
+
+        self.add_listener(self.backend.new_input_event, self._on_new_input)
+        self.add_listener(self.backend.new_output_event, self._on_new_output)
 
         # These windows have not been mapped yet.
         # They'll get managed when mapped.
@@ -115,8 +121,17 @@ class NextCore(Listeners):
         DataDeviceManager(self.display)
         DataControlManagerV1(self.display)
         self.seat: seat.Seat = seat.Seat(self.display, "NextWM-Seat0")
-        self.add_listener(self.backend.new_input_event, self._on_new_input)
-        self.add_listener(self.backend.new_output_event, self._on_new_output)
+        self.add_listener(
+            self.seat.request_set_selection_event, self._on_request_set_selection
+        )
+        self.add_listener(
+            self.seat.request_set_primary_selection_event,
+            self._on_request_set_primary_selection,
+        )
+        self.add_listener(
+            self.seat.request_set_cursor_event, self._on_request_set_cursor
+        )
+        # TODO: Bind more seat listeners
 
         # Output configuration.
         self.output_layout: OutputLayout = OutputLayout()
@@ -126,6 +141,7 @@ class NextCore(Listeners):
         # Cursor configuration
         self.cursor: Cursor = Cursor(self.output_layout)
         self.cursor_manager: XCursorManager = XCursorManager(24)
+        self.add_listener(self.cursor.axis_event, self._on_cursor_axis)
         self.add_listener(self.cursor.button_event, self._on_cursor_button)
         self.add_listener(self.cursor.frame_event, self._on_cursor_frame)
         # TODO: On motion check the view under the cursor and focus.
@@ -309,6 +325,24 @@ class NextCore(Listeners):
 
         NextOutput(self, wlr_output)
 
+    def _on_request_set_selection(
+        self, _listener: Listener, event: seat.RequestSetSelectionEvent
+    ) -> None:
+        log.info("Signal: wlr_seat_request_set_selection_event")
+        self.seat.set_selection(event._ptr.source, event.serial)
+
+    def _on_request_set_primary_selection(
+        self, _listener: Listener, event: seat.RequestSetPrimarySelectionEvent
+    ) -> None:
+        log.info("Signal: wlr_seat_on_request_set_primary_selection_event")
+        self.seat.set_primary_selection(event._ptr.source, event.serial)
+
+    def _on_request_set_cursor(
+        self, _listener: Listener, event: seat.PointerRequestSetCursorEvent
+    ) -> None:
+        log.info("Signal: wlr_seat_on_request_set_cursor")
+        self.cursor.set_surface(event.surface, event.hotspot)
+
     def _on_cursor_frame(self, _listener: Listener, data: Any) -> None:
         log.info("Signal: wlr_cursor_frame_event")
         self.seat.pointer_notify_frame()
@@ -337,6 +371,15 @@ class NextCore(Listeners):
         )
         # TODO: Finish this.
 
+    def _on_cursor_axis(self, _listener: Listener, event: PointerEventAxis) -> None:
+        self.seat.pointer_notify_axis(
+            event.time_msec,
+            event.orientation,
+            event.delta,
+            event.delta_discrete,
+            event.source,
+        )
+
     def _on_cursor_button(self, _listener: Listener, event: PointerEventButton) -> None:
         log.info("Signal: wlr_cursor_button_event")
         self.idle.notify_activity(self.seat)
@@ -346,6 +389,7 @@ class NextCore(Listeners):
         self.seat.pointer_notify_button(
             event.time_msec, event.button, event.button_state
         )
+        log.info("Cursor button emitted to focused client")
 
     def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
         log.info("Signal: xdg_shell_new_xdg_surface_event")

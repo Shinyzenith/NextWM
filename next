@@ -26,10 +26,24 @@
 import argparse
 import logging
 import os
+import subprocess
 
 import wlroots
 
-from libnext.backend import NextCore
+try:
+    from libnext.backend import NextCore
+except ModuleNotFoundError:
+    subprocess.run(
+        [
+            "python3",
+            "-m",
+            "pywayland.scanner",
+            "-i",
+            "./protocols/river-layout-v3.xml",
+            "/usr/share/wayland/wayland.xml",
+        ]
+    )
+    from libnext.backend import NextCore
 
 
 def main():

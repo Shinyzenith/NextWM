@@ -87,7 +87,7 @@ class NextKeyboard(Listeners):
             # TODO: Support change_vt()
             if (
                 self.keyboard.modifier == KeyboardModifier.ALT
-                and key_event.state == WlKeyboard.key_state.pressed  # noqa
+                and key_event.state == WlKeyboard.key_state.pressed  # noqa: W503
             ):
                 if keysym == xkb.keysym_from_name("Escape"):
                     # We don't care for sig_num anyways.
@@ -104,7 +104,7 @@ class NextKeyboard(Listeners):
                         self.core.mapped_windows.append(next_window)
                         self.core.focus_window(next_window)
 
-        log.info("Emitting key to focused client")
+        log.info("Key emitted to focused client")
         self.core.seat.set_keyboard(self.device)
         self.core.seat.keyboard_notify_key(key_event)
 
