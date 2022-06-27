@@ -100,7 +100,7 @@ class Window(Generic[Surface], Listeners):
         """
         Window destroy callback.
         """
-        log.info("Signal: window_destroy_event")
+        log.debug("Signal: window_destroy_event")
         if self.mapped:
             log.warn("Window destroy signal sent before unmap event.")
             self.mapped = False
@@ -141,9 +141,9 @@ class XdgWindow(Window[XdgSurface]):
         self.add_listener(self.surface.unmap_event, self._on_unmap)
 
     def _on_map(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_xdg_surface_map_event")
+        log.debug("Signal: wlr_xdg_surface_map_event")
         if self in self.core.pending_windows:
-            log.info("Managing a new top-level window")
+            log.debug("Managing a new top-level window")
             self.core.pending_windows.remove(self)
             self.mapped = True
 
@@ -222,7 +222,7 @@ class XdgWindow(Window[XdgSurface]):
         _listener: Listener,
         event: foreign_toplevel_management_v1.ForeignToplevelHandleV1MaximizedEvent,
     ) -> None:
-        log.info("Signal: wlr_foreign_toplevel_management_request_maximize")
+        log.debug("Signal: wlr_foreign_toplevel_management_request_maximize")
         self.maximized = event.maximized
 
     def _on_foreign_request_fullscreen(
@@ -230,19 +230,19 @@ class XdgWindow(Window[XdgSurface]):
         _listener: Listener,
         event: foreign_toplevel_management_v1.ForeignToplevelHandleV1FullscreenEvent,
     ) -> None:
-        log.info("Signal: wlr_foreign_toplevel_management_request_fullscreen")
+        log.debug("Signal: wlr_foreign_toplevel_management_request_fullscreen")
         self.borderwidth = 0
         self.fullscreen = event.fullscreen
 
     def _on_request_fullscreen(
         self, _listener: Listener, event: XdgTopLevelSetFullscreenEvent
     ) -> None:
-        log.info("Signal: wlr_xdg_surface_toplevel_request_fullscreen")
+        log.debug("Signal: wlr_xdg_surface_toplevel_request_fullscreen")
         self.borderwidth = 0
         self.fullscreen = event.fullscreen
 
     def _on_set_title(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_xdg_surface_toplevel_set_title")
+        log.debug("Signal: wlr_xdg_surface_toplevel_set_title")
         title = self.surface.toplevel.title
 
         if title and title != self.name:
@@ -250,7 +250,7 @@ class XdgWindow(Window[XdgSurface]):
             self.ftm_handle.set_title(self.name)
 
     def _on_set_app_id(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_xdg_surface_toplevel_set_app_id")
+        log.debug("Signal: wlr_xdg_surface_toplevel_set_app_id")
         self.wm_class = self.surface.toplevel.app_id
 
         if (
@@ -260,11 +260,11 @@ class XdgWindow(Window[XdgSurface]):
             self.ftm_handle.set_app_id(self.wm_class or "")
 
     def _on_new_popup(self, _listener: Listener, xdg_popup: XdgPopup) -> None:
-        log.info("Signal: wlr_xdg_surface_new_popup_event")
+        log.debug("Signal: wlr_xdg_surface_new_popup_event")
         self.popups.append(XdgPopupWindow(self, xdg_popup))
 
     def _on_unmap(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_xdg_surface_unmap_event")
+        log.debug("Signal: wlr_xdg_surface_unmap_event")
         self.mapped = False
         self.core.mapped_windows.remove(self)
 

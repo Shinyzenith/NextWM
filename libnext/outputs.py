@@ -52,11 +52,11 @@ class NextOutput(Listeners):
         self.destroy_listeners()
 
     def _on_destroy(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_output_destroy_event")
+        log.debug("Signal: wlr_output_destroy_event")
         self.destroy()
 
     def _on_frame(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_output_frame_event")
+        log.debug("Signal: wlr_output_frame_event")
         scene_output = self.core.scene.get_scene_output(self.wlr_output)
         scene_output.commit()
 

@@ -66,11 +66,11 @@ class NextKeyboard(Listeners):
 
     # Listeners
     def _on_destroy(self, _listener: Listener, _data: Any) -> None:
-        log.info("Signal: wlr_keyboard_destroy_event")
+        log.debug("Signal: wlr_keyboard_destroy_event")
         self.destroy()
 
     def _on_key(self, _listener: Listener, key_event: KeyboardKeyEvent) -> None:
-        log.info("Signal: wlr_keyboard_key_event")
+        log.debug("Signal: wlr_keyboard_key_event")
         # TODO: Add option to hide cursor when typing.
         # self.core.cursor.hide() -> From river.
 
@@ -124,11 +124,11 @@ class NextKeyboard(Listeners):
                             surface.close()
                     return
 
-        log.info("Key emitted to focused client")
+        log.debug("Key emitted to focused client")
         self.core.seat.set_keyboard(self.device)
         self.core.seat.keyboard_notify_key(key_event)
 
     def _on_modifiers(self, _listener: Listener, _data: Any):
-        log.info("Signal: wlr_keyboard_modifiers_event")
+        log.debug("Signal: wlr_keyboard_modifiers_event")
         self.core.seat.set_keyboard(self.device)
         self.core.seat.keyboard_notify_modifiers(self.keyboard.modifiers)

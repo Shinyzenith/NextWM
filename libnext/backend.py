@@ -222,7 +222,7 @@ class NextCore(Listeners):
         self.seat.destroy()
         self.backend.destroy()
         self.display.destroy()
-        log.info("Server destroyed")
+        log.debug("Server destroyed")
 
     def focus_window(self, window: WindowType, surface: Surface | None = None) -> None:
         if self.seat.destroyed:
@@ -258,20 +258,21 @@ class NextCore(Listeners):
             self.seat.keyboard_clear_focus()
             return
 
-        log.info("Focusing on surface")
+        log.debug("Focusing on surface")
         window.scene_node.raise_to_top()
-
-        # Preventing race conditions.
-        windows = self.mapped_windows[:]
-        windows.remove(window)
-        windows.append(window)
-        self.mapped_windows = windows
-
         window.surface.set_activated(True)
         if window.surface.data:
             window.surface.set_activated(True)  # Setting ftm_handle to activated_true
 
         self.seat.keyboard_notify_enter(window.surface.surface, self.seat.keyboard)
+
+    def hide_cursor(self) -> None:
+        log.debug("Hiding cursor")
+        # TODO: Finish this.
+        # XXX:lib.wlr_cursor_set_image(self.cursor._ptr, None, 0, 0, 0, 0, 0, 0)
+        # XXX:self.cursor.set_cursor_image(None, 0, 0, 0, 0, 0, 0)
+        log.debug("Clearing pointer focus")
+        self.seat.pointer_notify_clear_focus()
 
     # Properties
     @property
@@ -291,7 +292,7 @@ class NextCore(Listeners):
 
     # Listeners
     def _on_new_input(self, _listener: Listener, device: InputDevice) -> None:
-        log.info("Signal: wlr_backend_new_input_event")
+        log.debug("Signal: wlr_backend_new_input_event")
         match device.device_type:
             case InputDeviceType.KEYBOARD:
                 self.keyboards.append(NextKeyboard(self, device))
@@ -307,14 +308,14 @@ class NextCore(Listeners):
         self.seat.set_capabilities(capabilities)
         # TODO: Set libinput settings as needed after setting capabilities
 
-        log.info(
+        log.debug(
             "Device: %s of type %s detected.",
             device.name,
             device.device_type.name.lower(),
         )
 
     def _on_new_output(self, _listener: Listener, wlr_output: Output) -> None:
-        log.info("Signal: wlr_backend_new_output_event")
+        log.debug("Signal: wlr_backend_new_output_event")
 
         wlr_output.init_render(self.allocator, self.renderer)
 
@@ -331,23 +332,23 @@ class NextCore(Listeners):
     def _on_request_set_selection(
         self, _listener: Listener, event: seat.RequestSetSelectionEvent
     ) -> None:
-        log.info("Signal: wlr_seat_request_set_selection_event")
+        log.debug("Signal: wlr_seat_request_set_selection_event")
         self.seat.set_selection(event._ptr.source, event.serial)
 
     def _on_request_set_primary_selection(
         self, _listener: Listener, event: seat.RequestSetPrimarySelectionEvent
     ) -> None:
-        log.info("Signal: wlr_seat_on_request_set_primary_selection_event")
+        log.debug("Signal: wlr_seat_on_request_set_primary_selection_event")
         self.seat.set_primary_selection(event._ptr.source, event.serial)
 
     def _on_request_set_cursor(
         self, _listener: Listener, event: seat.PointerRequestSetCursorEvent
     ) -> None:
-        log.info("Signal: wlr_seat_on_request_set_cursor")
+        log.debug("Signal: wlr_seat_on_request_set_cursor")
         self.cursor.set_surface(event.surface, event.hotspot)
 
     def _on_cursor_frame(self, _listener: Listener, data: Any) -> None:
-        log.info("Signal: wlr_cursor_frame_event")
+        log.debug("Signal: wlr_cursor_frame_event")
         self.seat.pointer_notify_frame()
 
     def _on_cursor_motion(
@@ -356,7 +357,7 @@ class NextCore(Listeners):
         # TODO: This should get abstracted into it's own function to check if
         # image shoud be ptr or resize type.
         # TODO: Finish this.
-        log.info("Signal: wlr_cursor_motion_event")
+        log.debug("Signal: wlr_cursor_motion_event")
         self.cursor.move(
             event_motion.delta_x, event_motion.delta_y, input_device=event_motion.device
         )
@@ -365,7 +366,7 @@ class NextCore(Listeners):
     def _on_cursor_motion_absolute(
         self, _listener: Listener, event_motion: PointerEventMotionAbsolute
     ) -> None:
-        log.info("Signal: wlr_cursor_motion_absolute_event")
+        log.debug("Signal: wlr_cursor_motion_absolute_event")
         self.cursor.warp(
             WarpMode.LayoutClosest,
             event_motion.x,
@@ -384,7 +385,7 @@ class NextCore(Listeners):
         )
 
     def _on_cursor_button(self, _listener: Listener, event: PointerEventButton) -> None:
-        log.info("Signal: wlr_cursor_button_event")
+        log.debug("Signal: wlr_cursor_button_event")
         self.idle.notify_activity(self.seat)
         # TODO: If config wants focus_by_hover then do so, else focus_by_click.
 
@@ -392,21 +393,21 @@ class NextCore(Listeners):
         self.seat.pointer_notify_button(
             event.time_msec, event.button, event.button_state
         )
-        log.info("Cursor button emitted to focused client")
+        log.debug("Cursor button emitted to focused client")
 
     def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
-        log.info("Signal: xdg_shell_new_xdg_surface_event")
+        log.debug("Signal: xdg_shell_new_xdg_surface_event")
         if surface.role == XdgSurfaceRole.TOPLEVEL:
             self.pending_windows.add(XdgWindow(self, surface))
 
     def _on_new_layer_surface(
         self, _listener: Listener, surface: LayerSurfaceV1
     ) -> None:
-        log.info("Signal: layer_shell_new_layer_surface_event")
+        log.debug("Signal: layer_shell_new_layer_surface_event")
 
     def _on_new_toplevel_decoration(
         self, _listener: Listener, decoration: xdg_decoration_v1.XdgToplevelDecorationV1
     ) -> None:
-        log.info("Signal: xdg_decoration_v1_new_toplevel_decoration_event")
+        log.debug("Signal: xdg_decoration_v1_new_toplevel_decoration_event")
         # TODO: https://github.com/Shinyzenith/NextWM/issues/10
         decoration.set_mode(xdg_decoration_v1.XdgToplevelDecorationV1Mode.SERVER_SIDE)
