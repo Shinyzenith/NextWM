@@ -29,9 +29,13 @@ from typing import Any, Generic, TypeVar, Union
 from pywayland.server import Listener
 from wlroots import PtrHasData, ffi
 from wlroots.util.edges import Edges
-from wlroots.wlr_types import SceneNode
+from wlroots.wlr_types import SceneNode, foreign_toplevel_management_v1
 from wlroots.wlr_types.surface import SubSurface
-from wlroots.wlr_types.xdg_shell import XdgPopup, XdgSurface
+from wlroots.wlr_types.xdg_shell import (
+    XdgPopup,
+    XdgSurface,
+    XdgTopLevelSetFullscreenEvent,
+)
 
 from libnext import util
 from libnext.util import Listeners
@@ -83,6 +87,15 @@ class Window(Generic[Surface], Listeners):
         self.destroy_listeners()
         self.ftm_handle.destroy()
 
+    def set_border(self, color: util.ColorType | None, width: int) -> None:
+        # NOTE: Does this need anything else? Check qtile.
+        if color:
+            if isinstance(color, list):
+                self.bordercolor = [rgb(c) for c in color]
+            else:
+                self.bordercolor = [rgb(color)]
+        self.borderwidth = width
+
     def _on_destroy(self, _listener: Listener, _data: Any) -> None:
         """
         Window destroy callback.
@@ -117,6 +130,11 @@ class XdgWindow(Window[XdgSurface]):
         self.popups: list[XdgPopupWindow] = []
         self.subsurfaces: list[SubSurface] = []
 
+        self.fullscreen: bool = False
+        # NOTE: Do we really need this?
+        self.maximized: bool = False
+
+        # TODO: Finish this.
         self.add_listener(self.surface.destroy_event, self._on_destroy)
         self.add_listener(self.surface.map_event, self._on_map)
         self.add_listener(self.surface.new_popup_event, self._on_new_popup)
@@ -143,8 +161,103 @@ class XdgWindow(Window[XdgSurface]):
                 self.ftm_handle.set_app_id(self.wm_class or "")
 
             # TODO: Toplevel listeners go here.
+            self.add_listener(
+                self.surface.toplevel.request_fullscreen_event,
+                self._on_request_fullscreen,
+            )
+            self.add_listener(self.surface.toplevel.set_title_event, self._on_set_title)
+            self.add_listener(
+                self.surface.toplevel.set_app_id_event, self._on_set_app_id
+            )
+            # foreign_toplevel_management_v1 callbacks.
+            self.add_listener(
+                self.ftm_handle.request_maximize_event,
+                self._on_foreign_request_maximize,
+            )
+            self.add_listener(
+                self.ftm_handle.request_fullscreen_event,
+                self._on_foreign_request_fullscreen,
+            )
+
             self.core.mapped_windows.append(self)
             self.core.focus_window(self)
+            # TODO: Remove this before first release candidate.
+            # This is only here for testing.
+            self.place(0, 0, 1920, 1080, 0, None, True, None, False)
+
+    def place(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        borderwidth: int,
+        bordercolor: util.ColorType | None,
+        above: bool = False,
+        margin: int | list[int] | None = None,
+        respect_hints: bool = False,
+    ) -> None:
+        if margin is not None:
+            if isinstance(margin, int):
+                margin = [margin] * 4
+            x += margin[3]
+            y += margin[0]
+            width -= margin[1] + margin[3]
+            height -= margin[0] + margin[2]
+        # TODO: This is incomplete. Finish this.
+
+        self.x = x
+        self.y = y
+        self.width = int(width)
+        self.height = int(height)
+        self.surface.set_size(self.width, self.height)
+        self.scene_node.set_position(self.x, self.y)
+        self.set_border(bordercolor, borderwidth)
+
+        if above:
+            self.core.focus_window(self)
+
+    def _on_foreign_request_maximize(
+        self,
+        _listener: Listener,
+        event: foreign_toplevel_management_v1.ForeignToplevelHandleV1MaximizedEvent,
+    ) -> None:
+        log.info("Signal: wlr_foreign_toplevel_management_request_maximize")
+        self.maximized = event.maximized
+
+    def _on_foreign_request_fullscreen(
+        self,
+        _listener: Listener,
+        event: foreign_toplevel_management_v1.ForeignToplevelHandleV1FullscreenEvent,
+    ) -> None:
+        log.info("Signal: wlr_foreign_toplevel_management_request_fullscreen")
+        self.borderwidth = 0
+        self.fullscreen = event.fullscreen
+
+    def _on_request_fullscreen(
+        self, _listener: Listener, event: XdgTopLevelSetFullscreenEvent
+    ) -> None:
+        log.info("Signal: wlr_xdg_surface_toplevel_request_fullscreen")
+        self.borderwidth = 0
+        self.fullscreen = event.fullscreen
+
+    def _on_set_title(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_xdg_surface_toplevel_set_title")
+        title = self.surface.toplevel.title
+
+        if title and title != self.name:
+            self.name = title
+            self.ftm_handle.set_title(self.name)
+
+    def _on_set_app_id(self, _listener: Listener, _data: Any) -> None:
+        log.info("Signal: wlr_xdg_surface_toplevel_set_app_id")
+        self.wm_class = self.surface.toplevel.app_id
+
+        if (
+            self.surface.toplevel.app_id
+            and self.surface.topleve.app_id != self.wm_class  # noqa: W503
+        ):
+            self.ftm_handle.set_app_id(self.wm_class or "")
 
     def _on_new_popup(self, _listener: Listener, xdg_popup: XdgPopup) -> None:
         log.info("Signal: wlr_xdg_surface_new_popup_event")

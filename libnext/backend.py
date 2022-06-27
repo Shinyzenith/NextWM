@@ -79,7 +79,6 @@ class NextCore(Listeners):
         Setup nextwm
         """
         self.display: Display = Display()
-        self.display.init_shm()
         self.event_loop = self.display.get_event_loop()
 
         for handled_signal in [
@@ -233,7 +232,7 @@ class NextCore(Listeners):
 
         previous_surface = self.seat.keyboard_state.focused_surface
         if previous_surface == surface:
-            log.info("Focus requested on currently focused surface. Focus unchanged.")
+            log.error("Focus requested on currently focused surface. Focus unchanged.")
             return
 
         if previous_surface is not None:
@@ -259,7 +258,7 @@ class NextCore(Listeners):
             self.seat.keyboard_clear_focus()
             return
 
-        log.info("Focusing on surface.")
+        log.info("Focusing on surface")
         window.scene_node.raise_to_top()
 
         # Preventing race conditions.

@@ -28,10 +28,11 @@ from typing import Any
 
 from pywayland.protocol.wayland import WlKeyboard
 from pywayland.server import Listener
-from wlroots import ffi, lib
+from wlroots import ffi, lib, xwayland
 from wlroots.wlr_types import InputDevice
 from wlroots.wlr_types.keyboard import KeyboardKeyEvent, KeyboardModifier
 from xkbcommon import xkb
+from wlroots.wlr_types.xdg_shell import XdgSurface
 
 from libnext.util import Listeners
 
@@ -111,6 +112,17 @@ class NextKeyboard(Listeners):
                         self.core.mapped_windows.append(window)
                         self.core.focus_window(self.core.mapped_windows[-1])
                         return
+
+                if keysym == xkb.keysym_from_name("q"):
+                    surface = self.core.seat.keyboard_state.focused_surface
+                    if surface is not None:
+                        if surface.is_xdg_surface:
+                            surface = XdgSurface.from_surface(surface)
+                            surface.send_close()
+                        elif surface.is_xwayland_surface:
+                            surface = xwayland.Surface.from_wlr_surface(surface)
+                            surface.close()
+                    return
 
         log.info("Key emitted to focused client")
         self.core.seat.set_keyboard(self.device)
