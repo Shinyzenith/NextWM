@@ -100,9 +100,17 @@ class NextKeyboard(Listeners):
 
                 if keysym == xkb.keysym_from_name("j"):
                     if len(self.core.mapped_windows) >= 2:
-                        next_window = self.core.mapped_windows.pop(-2)
-                        self.core.mapped_windows.append(next_window)
-                        self.core.focus_window(next_window)
+                        window = self.core.mapped_windows.pop()
+                        self.core.mapped_windows.insert(0, window)
+                        self.core.focus_window(self.core.mapped_windows[-1])
+                        return
+
+                if keysym == xkb.keysym_from_name("k"):
+                    if len(self.core.mapped_windows) >= 2:
+                        window = self.core.mapped_windows.pop(0)
+                        self.core.mapped_windows.append(window)
+                        self.core.focus_window(self.core.mapped_windows[-1])
+                        return
 
         log.info("Key emitted to focused client")
         self.core.seat.set_keyboard(self.device)
