@@ -79,6 +79,7 @@ class NextCore(Listeners):
         Setup nextwm
         """
         self.display: Display = Display()
+        self.display.init_shm()
         self.event_loop = self.display.get_event_loop()
 
         for handled_signal in [
@@ -138,6 +139,7 @@ class NextCore(Listeners):
         self.output_layout: OutputLayout = OutputLayout()
         self.scene: Scene = Scene(self.output_layout)
         self.output_manager: OutputManagerV1 = OutputManagerV1(self.display)
+        self.layout_manager = LayoutManager(self.display)
 
         # Cursor configuration
         self.cursor: Cursor = Cursor(self.output_layout)
@@ -170,7 +172,6 @@ class NextCore(Listeners):
         # output_power_manager = OutputPowerManagerV1(self.display)
         _ = IdleInhibitorManagerV1(self.display)
         _ = OutputPowerManagerV1(self.display)
-        LayoutManager(self.display)
 
         self.xdg_decoration_manager_v1 = (
             xdg_decoration_v1.XdgDecorationManagerV1.create(self.display)
@@ -215,6 +216,7 @@ class NextCore(Listeners):
 
         if self.xwayland:
             self.xwayland.destroy()
+        self.layout_manager.destroy()
         self.cursor.destroy()
         self.cursor_manager.destroy()
         self.output_layout.destroy()

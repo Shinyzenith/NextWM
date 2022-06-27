@@ -32,7 +32,10 @@ log = logging.getLogger("Next: LayoutManager")
 
 
 class LayoutManager(Global):
-    def __init__(self, display: Display):
+    def __init__(self, display: Display) -> None:
         self.interface = RiverLayoutManagerV3
         super().__init__(display, 1)
         log.info("Created RiverLayoutManagerV3 global")
+
+    def destroy(self) -> None:
+        super().destroy()
