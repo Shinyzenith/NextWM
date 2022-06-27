@@ -68,6 +68,7 @@ from libnext.inputs import NextKeyboard
 from libnext.outputs import NextOutput
 from libnext.util import Listeners
 from libnext.window import WindowType, XdgWindow
+from libnext.layout_manager import LayoutManager
 
 log = logging.getLogger("Next: Backend")
 
@@ -169,6 +170,7 @@ class NextCore(Listeners):
         # output_power_manager = OutputPowerManagerV1(self.display)
         _ = IdleInhibitorManagerV1(self.display)
         _ = OutputPowerManagerV1(self.display)
+        LayoutManager(self.display)
 
         self.xdg_decoration_manager_v1 = (
             xdg_decoration_v1.XdgDecorationManagerV1.create(self.display)
