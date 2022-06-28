@@ -151,7 +151,7 @@ class NextCore(Listeners):
         self.add_listener(self.cursor.button_event, self._on_cursor_button)
         self.add_listener(self.cursor.frame_event, self._on_cursor_frame)
         # TODO: On motion check the view under the cursor and focus.
-        # Or focus on click?
+        # Or focus on click? NOTE: Use wlroots scene_graph node_at func for this.
         self.add_listener(self.cursor.motion_event, self._on_cursor_motion)
         self.add_listener(
             self.cursor.motion_absolute_event, self._on_cursor_motion_absolute
