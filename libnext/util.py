@@ -58,7 +58,7 @@ def rgb(x: ColorType) -> tuple[float, float, float, float]:
             alpha = x[-1]
         else:
             alpha = 1.0
-        return (x[0] / 255.0, x[1] / 255.0, x[2] / 255.0)
+        return (x[0] / 255.0, x[1] / 255.0, x[2] / 255.0, alpha)
     elif isinstance(x, str):
         if x.startswith("#"):
             x = x[1:]
@@ -75,8 +75,8 @@ def rgb(x: ColorType) -> tuple[float, float, float, float]:
             vals = tuple(int(i, 16) for i in (x[0:2], x[2:4], x[4:6]))
         if len(x) == 8:
             alpha = int(x[6:8], 16) / 255.0
-        vals += (alpha,)
-        return rgb(vals)
+        vals += (alpha,)  # type: ignore
+        return rgb(vals)  # type: ignore
     raise ValueError("Invalid RGB specifier.")
 
 

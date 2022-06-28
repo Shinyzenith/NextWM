@@ -10,6 +10,7 @@ clean:
 	@rm -rf **/**/__pycache__
 	@rm -rf **/__pycache__
 	@rm -rf .tox
+	@rm -rf .eggs
 	@rm -rf .mypy_cache
 
 setup:
@@ -18,6 +19,6 @@ setup:
 	@python3 ./libnext/libinput_ffi_build.py
 
 lint:
-	@TOXENV=codestyle,flake,black,py310 tox
+	@TOXENV=codestyle,flake,black,mypy,py310 tox
 
 .PHONY: run clean lint

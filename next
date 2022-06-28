@@ -70,7 +70,7 @@ def main():
     )
 
     try:
-        import coloredlogs
+        import coloredlogs  # type: ignore
 
         if args.debug:
             coloredlogs.install(logger=log, level="DEBUG")

@@ -43,7 +43,7 @@ from libnext.util import Listeners
 EDGES_TILED = Edges.TOP | Edges.BOTTOM | Edges.LEFT | Edges.RIGHT
 EDGES_FLOAT = Edges.NONE
 
-Surface = TypeVar("S", bound=PtrHasData)
+Surface = TypeVar("Surface", bound=PtrHasData)
 log = logging.getLogger("Next: Window")
 
 
@@ -62,8 +62,8 @@ class Window(Generic[Surface], Listeners):
     def __init__(self, core, surface: Surface):
         self.core = core
         self.surface = surface
-        self.scene_node = SceneNode.xdg_surface_create(self.core.scene.node, surface)
         self.mapped: bool = False
+        self.scene_node: SceneNode
 
         self.x = 0
         self.y = 0
@@ -129,6 +129,7 @@ class XdgWindow(Window[XdgSurface]):
         self.wm_class = surface.toplevel.app_id
         self.popups: list[XdgPopupWindow] = []
         self.subsurfaces: list[SubSurface] = []
+        self.scene_node = SceneNode.xdg_surface_create(self.core.scene.node, surface)
 
         self.fullscreen: bool = False
         # NOTE: Do we really need this?
@@ -255,7 +256,7 @@ class XdgWindow(Window[XdgSurface]):
 
         if (
             self.surface.toplevel.app_id
-            and self.surface.topleve.app_id != self.wm_class  # noqa: W503
+            and self.surface.toplevel.app_id != self.wm_class  # noqa: W503
         ):
             self.ftm_handle.set_app_id(self.wm_class or "")
 

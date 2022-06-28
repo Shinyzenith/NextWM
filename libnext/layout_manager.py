@@ -24,7 +24,8 @@
 
 import logging
 
-from pywayland.protocol.river_layout_v3 import RiverLayoutManagerV3
+# TODO: Figure out why this breaks mypy.
+from pywayland.protocol.river_layout_v3 import RiverLayoutManagerV3  # ignore: type
 from pywayland.protocol_core.globals import Global
 from pywayland.server import Display
 

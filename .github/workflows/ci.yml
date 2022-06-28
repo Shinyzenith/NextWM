@@ -1,26 +1,26 @@
 name: ci
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+    push:
+        branches:
+            - master
+    pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
-    name: "python 3.10"
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up python 3.10
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.10.4
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install make -y
-          pip -q install "tox<4" tox-gh-actions
-      - name: Lint
-        run: |
-          make lint
+    build:
+        runs-on: ubuntu-22.04
+        name: "python 3.10"
+        steps:
+            - uses: actions/checkout@v2
+            - name: Set up python 3.10
+              uses: actions/setup-python@v2
+              with:
+                  python-version: 3.10.4
+            - name: Install dependencies
+              run: |
+                  sudo apt update
+                  sudo apt install make libinput-dev --no-install-recommends -y
+                  pip -q install "tox<4" tox-gh-actions
+            - name: Lint
+              run: |
+                  make lint

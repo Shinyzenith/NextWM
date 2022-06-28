@@ -65,10 +65,10 @@ from wlroots.wlr_types.pointer import (
 from wlroots.wlr_types.xdg_shell import XdgShell, XdgSurface, XdgSurfaceRole
 
 from libnext.inputs import NextKeyboard
+from libnext.layout_manager import LayoutManager
 from libnext.outputs import NextOutput
 from libnext.util import Listeners
 from libnext.window import WindowType, XdgWindow
-from libnext.layout_manager import LayoutManager
 
 log = logging.getLogger("Next: Backend")
 
@@ -78,6 +78,10 @@ class NextCore(Listeners):
         """
         Setup nextwm
         """
+        if os.getenv("XDG_RUNTIME_DIR") is None or os.getenv("XDG_RUNTIME_DIR") == "":
+            log.error("XDG_RUNTIME_DIR is not set in the environment")
+            return
+
         self.display: Display = Display()
         self.event_loop = self.display.get_event_loop()
 
@@ -323,9 +327,10 @@ class NextCore(Listeners):
             mode = wlr_output.preferred_mode()
             if mode is None:
                 log.error("New output advertised with no output mode")
-            wlr_output.set_mode(mode)
-            wlr_output.enable()
-            wlr_output.commit()
+            else:
+                wlr_output.set_mode(mode)
+                wlr_output.enable()
+                wlr_output.commit()
 
         NextOutput(self, wlr_output)
 
