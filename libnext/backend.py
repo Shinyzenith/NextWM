@@ -29,6 +29,7 @@ from typing import Any
 
 from pywayland.protocol.wayland import WlSeat
 from pywayland.server import Display, Listener
+from pywayland.server.eventloop import EventSource
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
 from wlroots.wlr_types import (
@@ -85,6 +86,7 @@ class NextCore(Listeners):
         self.display: Display = Display()
         self.event_loop = self.display.get_event_loop()
 
+        self.event_loop_callbacks: list[EventSource] = []
         for handled_signal in [
             signal.SIGINT,
             signal.SIGTERM,
@@ -92,8 +94,10 @@ class NextCore(Listeners):
             signal.SIGKILL,
             signal.SIGQUIT,
         ]:
-            self.event_loop.add_signal(
-                handled_signal, self.signal_callback, self.display
+            self.event_loop_callbacks.append(
+                self.event_loop.add_signal(
+                    handled_signal, self.signal_callback, self.display
+                )
             )
 
         (
@@ -146,6 +150,7 @@ class NextCore(Listeners):
 
         # Cursor configuration
         self.cursor: Cursor = Cursor(self.output_layout)
+
         self.cursor_manager: XCursorManager = XCursorManager(24)
         self.add_listener(self.cursor.axis_event, self._on_cursor_axis)
         self.add_listener(self.cursor.button_event, self._on_cursor_button)
@@ -194,10 +199,16 @@ class NextCore(Listeners):
         if not self.xwayland:
             log.error("Failed to setup XWayland. Continuing without.")
         else:
+            self.xwayland.set_seat(self.seat)
             os.environ["DISPLAY"] = self.xwayland.display_name or ""
             log.info(f"XWAYLAND DISPLAY {self.xwayland.display_name}")
 
         self.backend.start()
+
+        # Getting output_layout dimensions and setting the cursor to spawn in the middle of it.
+        layout_box = self.output_layout.get_box(None)
+        self.cursor.warp(WarpMode.Layout, layout_box.width / 2, layout_box.height / 2)
+
         self.display.run()
 
         # Cleanup
@@ -210,12 +221,14 @@ class NextCore(Listeners):
     # Resource cleanup.
     def destroy(self) -> None:
         self.destroy_listeners()
+        [
+            event_loop_callback.remove()
+            for event_loop_callback in self.event_loop_callbacks
+        ]
 
-        for keyboard in self.keyboards:
-            keyboard.destroy_listeners()
+        [keyboard.destroy_listeners() for keyboard in self.keyboards]
 
-        for output in self.outputs:
-            output.destroy_listeners()
+        [output.destroy_listeners() for output in self.outputs]
 
         if self.xwayland:
             self.xwayland.destroy()
@@ -391,13 +404,13 @@ class NextCore(Listeners):
 
     def _on_cursor_button(self, _listener: Listener, event: PointerEventButton) -> None:
         log.debug("Signal: wlr_cursor_button_event")
-        self.idle.notify_activity(self.seat)
         # TODO: If config wants focus_by_hover then do so, else focus_by_click.
 
         # NOTE: Maybe support compositor bindings involving buttons?
         self.seat.pointer_notify_button(
             event.time_msec, event.button, event.button_state
         )
+        self.idle.notify_activity(self.seat)
         log.debug("Cursor button emitted to focused client")
 
     def _on_new_xdg_surface(self, _listener: Listener, surface: XdgSurface) -> None:
