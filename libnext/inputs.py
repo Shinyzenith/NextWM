@@ -28,10 +28,9 @@ from typing import Any
 
 from pywayland.protocol.wayland import WlKeyboard
 from pywayland.server import Listener
-from wlroots import ffi, lib, xwayland
+from wlroots import ffi, lib
 from wlroots.wlr_types import InputDevice
 from wlroots.wlr_types.keyboard import KeyboardKeyEvent, KeyboardModifier
-from wlroots.wlr_types.xdg_shell import XdgSurface
 from xkbcommon import xkb
 
 from libnext.util import Listeners
@@ -114,15 +113,9 @@ class NextKeyboard(Listeners):
                         return
 
                 if keysym == xkb.keysym_from_name("q"):
-                    surface = self.core.seat.keyboard_state.focused_surface
-                    if surface is not None:
-                        if surface.is_xdg_surface:
-                            surface = XdgSurface.from_surface(surface)
-                            surface.send_close()
-                        elif surface.is_xwayland_surface:
-                            surface = xwayland.Surface.from_wlr_surface(surface)
-                            surface.close()
-                    return
+                    if self.core.mapped_windows:
+                        self.core.mapped_windows[-1].kill()
+                        return
 
                 if keysym == xkb.keysym_from_name("1"):
                     self.core.backend.get_session().change_vt(1)

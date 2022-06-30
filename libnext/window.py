@@ -26,6 +26,7 @@ import functools
 import logging
 from typing import Any, Generic, TypeVar, Union
 
+import pywayland
 from pywayland.server import Listener
 from wlroots import PtrHasData, ffi
 from wlroots.util.edges import Edges
@@ -124,7 +125,7 @@ class XdgWindow(Window[XdgSurface]):
     """
 
     def __init__(self, core, surface: XdgSurface):
-        Window.__init__(self, core, surface)
+        super().__init__(core, surface)
 
         self.wm_class = surface.toplevel.app_id
         self.popups: list[XdgPopupWindow] = []
@@ -185,6 +186,16 @@ class XdgWindow(Window[XdgSurface]):
             # TODO: Remove this before first release candidate.
             # This is only here for testing.
             self.place(0, 0, 1920, 1080, 0, None, True, None, False)
+
+    def get_pid(self) -> int:
+        pid = pywayland.ffi.new("pid_t *")
+        pywayland.lib.wl_client_get_credentials(
+            self.surface._ptr.client.client, pid, ffi.NULL, ffi.NULL
+        )
+        return pid[0]
+
+    def kill(self) -> None:
+        self.surface.send_close()
 
     def place(
         self,
