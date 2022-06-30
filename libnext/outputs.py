@@ -39,13 +39,19 @@ class NextOutput(Listeners):
         self.core = core
         self.wlr_output = wlr_output
         self.damage: OutputDamage = OutputDamage(wlr_output)
-        self.x, self.y = self.core.output_layout.output_coords(wlr_output)
-
         self.core.output_layout.add_auto(self.wlr_output)
+        self.x, self.y = self.core.output_layout.output_coords(wlr_output)
+        self.width: int
+        self.height: int
+
         self.core.outputs.append(self)
 
-        self.add_listener(wlr_output.destroy_event, self._on_destroy)
+        self.add_listener(self.wlr_output.destroy_event, self._on_destroy)
         self.add_listener(self.damage.frame_event, self._on_frame)
+
+    def get_geometry(self) -> tuple[int, int, int, int]:
+        width, height = self.wlr_output.effective_resolution()
+        return int(self.x), int(self.y), width, height
 
     def destroy(self) -> None:
         self.core.outputs.remove(self)
@@ -58,7 +64,10 @@ class NextOutput(Listeners):
     def _on_frame(self, _listener: Listener, _data: Any) -> None:
         log.debug("Signal: wlr_output_frame_event")
         scene_output = self.core.scene.get_scene_output(self.wlr_output)
-        scene_output.commit()
+        try:
+            scene_output.commit()
+        except Exception as e:
+            log.error("Failed to commit to scene: ", e)
 
         # This function is a no-op when hardware cursors are in use.
         self.wlr_output.render_software_cursors()
