@@ -88,6 +88,13 @@ class Window(Generic[Surface], Listeners):
         self.destroy_listeners()
         self.ftm_handle.destroy()
 
+    def window_at(
+        self, layout_x: int, layout_y: int
+    ) -> tuple[Surface | None, float, float]:
+        view_x = layout_x - self.x
+        view_y = layout_y - self.y
+        return self.surface.surface_at(view_x, view_y)
+
     def set_border(self, color: util.ColorType | None, width: int) -> None:
         # NOTE: Does this need anything else? Check qtile.
         if color:

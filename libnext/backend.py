@@ -32,24 +32,12 @@ from pywayland.server import Display, Listener
 from pywayland.server.eventloop import EventSource
 from wlroots import helper as wlroots_helper
 from wlroots import xwayland
-from wlroots.wlr_types import (
-    Cursor,
-    DataControlManagerV1,
-    DataDeviceManager,
-    ExportDmabufManagerV1,
-    ForeignToplevelManagerV1,
-    GammaControlManagerV1,
-    Output,
-    OutputLayout,
-    PrimarySelectionV1DeviceManager,
-    Scene,
-    ScreencopyManagerV1,
-    Surface,
-    XCursorManager,
-    XdgOutputManagerV1,
-    seat,
-    xdg_decoration_v1,
-)
+from wlroots.wlr_types import (Cursor, DataControlManagerV1, DataDeviceManager,
+                               ExportDmabufManagerV1, ForeignToplevelManagerV1,
+                               GammaControlManagerV1, Output, OutputLayout,
+                               PrimarySelectionV1DeviceManager, Scene,
+                               ScreencopyManagerV1, Surface, XCursorManager,
+                               XdgOutputManagerV1, seat, xdg_decoration_v1)
 from wlroots.wlr_types.cursor import WarpMode
 from wlroots.wlr_types.idle import Idle
 from wlroots.wlr_types.idle_inhibit_v1 import IdleInhibitorManagerV1
@@ -57,12 +45,9 @@ from wlroots.wlr_types.input_device import InputDevice, InputDeviceType
 from wlroots.wlr_types.layer_shell_v1 import LayerShellV1, LayerSurfaceV1
 from wlroots.wlr_types.output_management_v1 import OutputManagerV1
 from wlroots.wlr_types.output_power_management_v1 import OutputPowerManagerV1
-from wlroots.wlr_types.pointer import (
-    PointerEventAxis,
-    PointerEventButton,
-    PointerEventMotion,
-    PointerEventMotionAbsolute,
-)
+from wlroots.wlr_types.pointer import (PointerEventAxis, PointerEventButton,
+                                       PointerEventMotion,
+                                       PointerEventMotionAbsolute)
 from wlroots.wlr_types.xdg_shell import XdgShell, XdgSurface, XdgSurfaceRole
 
 from libnext.inputs import NextKeyboard
@@ -161,6 +146,9 @@ class NextCore(Listeners):
         self.add_listener(
             self.cursor.motion_absolute_event, self._on_cursor_motion_absolute
         )
+        self.cursor_surface: Surface | None = None
+        self.cursor_hotspot: tuple[int, int] = (0, 0)
+        self.cursor_hidden: bool = False
 
         # Setup Xdg shell
         self.xdg_shell: XdgShell = XdgShell(self.display)
@@ -218,17 +206,27 @@ class NextCore(Listeners):
         log.info("Terminating event loop")
         display.terminate()
 
+    def window_at(
+        self, layout_x, layout_y
+    ) -> tuple[WindowType | None, Surface | None, float, float]:
+        for window in reversed(self.mapped_windows):
+            surface, x, y = window.window_at(layout_x, layout_y)
+            if surface is not None:
+                return window, surface, x, y
+        return None, None, 0, 0
+
     # Resource cleanup.
     def destroy(self) -> None:
         self.destroy_listeners()
-        [
+
+        for event_loop_callback in self.event_loop_callbacks:
             event_loop_callback.remove()
-            for event_loop_callback in self.event_loop_callbacks
-        ]
 
-        [keyboard.destroy_listeners() for keyboard in self.keyboards]
+        for keyboard in self.keyboards:
+            keyboard.destroy_listeners()
 
-        [output.destroy_listeners() for output in self.outputs]
+        for output in self.outputs:
+            output.destroy_listeners()
 
         if self.xwayland:
             self.xwayland.destroy()
@@ -283,13 +281,12 @@ class NextCore(Listeners):
 
         self.seat.keyboard_notify_enter(window.surface.surface, self.seat.keyboard)
 
-    def hide_cursor(self) -> None:
-        log.debug("Hiding cursor")
-        # TODO: Finish this.
-        # XXX:lib.wlr_cursor_set_image(self.cursor._ptr, None, 0, 0, 0, 0, 0, 0)
-        # XXX:self.cursor.set_cursor_image(None, 0, 0, 0, 0, 0, 0)
-        log.debug("Clearing pointer focus")
-        self.seat.pointer_notify_clear_focus()
+    def toggle_hide_cursor(self) -> None:
+        log.error(self.cursor_surface)
+        self.cursor.set_surface(
+            None if not self.cursor_hidden else self.cursor_surface, self.cursor_hotspot
+        )
+        self.cursor_hidden = not self.cursor_hidden
 
     # Properties
     @property
@@ -363,7 +360,11 @@ class NextCore(Listeners):
         self, _listener: Listener, event: seat.PointerRequestSetCursorEvent
     ) -> None:
         log.debug("Signal: wlr_seat_on_request_set_cursor")
-        self.cursor.set_surface(event.surface, event.hotspot)
+        self.cursor_surface = event.surface
+        self.cursor_hotspot = event.hotspot
+
+        if not self.cursor_hidden:
+            self.cursor.set_surface(event.surface, event.hotspot)
 
     def _on_cursor_frame(self, _listener: Listener, data: Any) -> None:
         log.debug("Signal: wlr_cursor_frame_event")
@@ -376,10 +377,22 @@ class NextCore(Listeners):
         # image shoud be ptr or resize type.
         # TODO: Finish this.
         log.debug("Signal: wlr_cursor_motion_event")
+        self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
         self.cursor.move(
             event_motion.delta_x, event_motion.delta_y, input_device=event_motion.device
         )
-        self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
+
+        # TODO: Stop repeating this on every cursor event.
+        view, surface, sx, sy = self.window_at(self.cursor.x, self.cursor.y)
+        if view is None:
+            self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
+
+        if surface is None:
+            self.seat.pointer_notify_clear_focus()
+        else:
+            log.error("FOUND A WINDOW AND SETTING FOCUS TO IT")
+            self.seat.pointer_notify_enter(surface, sx, sy)
+            self.seat.pointer_notify_motion(event_motion.time_msec, sx, sy)
 
     def _on_cursor_motion_absolute(
         self, _listener: Listener, event_motion: PointerEventMotionAbsolute
@@ -391,6 +404,16 @@ class NextCore(Listeners):
             event_motion.y,
             input_device=event_motion.device,
         )
+        # TODO: Stop repeating this on every cursor event.
+        view, surface, sx, sy = self.window_at(self.cursor.x, self.cursor.y)
+        if view is None:
+            self.cursor_manager.set_cursor_image("left_ptr", self.cursor)
+
+        if surface is None:
+            self.seat.pointer_notify_clear_focus()
+        else:
+            self.seat.pointer_notify_enter(surface, sx, sy)
+            self.seat.pointer_notify_motion(event_motion.time_msec, sx, sy)
         # TODO: Finish this.
 
     def _on_cursor_axis(self, _listener: Listener, event: PointerEventAxis) -> None:

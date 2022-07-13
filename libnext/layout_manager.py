@@ -36,7 +36,7 @@ class LayoutManager(Global):
     def __init__(self, display: Display) -> None:
         self.interface = RiverLayoutManagerV3
         super().__init__(display, 1)
-        log.debug("Created RiverLayoutManagerV3 global")
+        log.info("Created river_layout_manager_v3 global")
 
     def destroy(self) -> None:
         super().destroy()
